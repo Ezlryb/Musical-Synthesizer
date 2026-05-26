@@ -1,6 +1,7 @@
 import numpy as np
 from scipy import signal
 from math import *
+import pygame as py
 
 class Wave:
     def __init__(self, frequency, wav_type, amplitude, sample_rate=44100, attack=0.1, decay=5, sustain=3, release=0.4):
@@ -37,19 +38,17 @@ class Wave:
 
         self.wav *= self.max_amplitude
         self.wav = np.asarray([32767*self.wav, 32767*self.wav]).T.astype(np.int16)
-        
 
-class Note:
-    def __init__(self, harmonic_waves):
-        pass
-
-
-
-
-
-
-
-
-    
-
+py.init()
+wave1 = Wave(440, 'sin', 0.5, 44100, 1, 1, 1, 1)
+wave2 = Wave(4, 'sin', 1, 44100, 1, 1, 1, 1)
+wave3 = wave1.wav+wave2.wav
+wave3 = py.sndarray.make_sound(wave3.copy())
+wave3.play()
+running = True
+while running:
+    for event in py.event.get():
+        if event.type == py.QUIT:
+            running = False
+py.quit()
 
