@@ -4,25 +4,29 @@ from Wave_class import *
 from pathlib import *
 
 class Note:
-    def __init__(self, normal_img, hovered_img, pressed_img, base_frequency, location, screen):
+    def __init__(self, normal_img, hovered_img, pressed_img, location, screen):
         self.screen = screen
         self.normal_img = normal_img
         self.hovered_img = hovered_img
         self.pressed_img = pressed_img
-        self.base_frequency = base_frequency
+        self.base_frequency = 440
         self.rect = normal_img.get_rect()
         self.location = location
         self.rect.topleft = location
         self.state = 'normal'
         self.currect_img = normal_img
-        self.note = py.sndarray.make_sound(Wave(base_frequency,'sin',0.5,44100,1,1,1,1).wav.copy())
+        self.index = 0
+        self.note = py.sndarray.make_sound(Wave(self.base_frequency,'sin',0.5,44100,1,1,1,1).wav.copy())
         screen.blit(normal_img, location)
 
     def play_note(self):
+        print(self.index)
+        self.channel = py.mixer.Channel(self.index)
         self.note = py.sndarray.make_sound(Wave(self.base_frequency,'sin',0.5,44100,1,1,1,1).wav.copy())
-        self.note.play()
+        self.channel.play(self.note)
         self.state = 'pressed'
         self.currect_img = self.pressed_img
+
     def release_note(self, mouse_pos):
         self.note.fadeout(1000)
         self.state = 'normal'
@@ -35,11 +39,11 @@ class Note:
 
 
 def mouse_note_check(w_notes, b_notes):
+    global number_of_notes_playing
     mouse_pos = py.mouse.get_pos()
     over_w_key = False
     over_b_key = False
     key = ''
-    
     for note in b_notes:
         if note.rect.collidepoint(mouse_pos):
             over_b_key = True
@@ -53,12 +57,10 @@ def mouse_note_check(w_notes, b_notes):
                 key = note
             else:
                 note.release_note(mouse_pos)
-
     if py.mouse.get_pressed()[0]:
         if over_b_key:
             if key.state == 'normal':
                 key.play_note()
-
         elif over_w_key:
             if key.rect.collidepoint(mouse_pos) and key.state == 'normal':
                 key.play_note()
@@ -69,12 +71,19 @@ def mouse_note_check(w_notes, b_notes):
     else:
         for note in w_notes+b_notes:
             note.release_note(mouse_pos)
-
+    
+    number_of_notes_playing = 0
+    for i in range(len(notes_wb)):
+        if py.mixer.Channel(i).get_busy():
+            number_of_notes_playing += py.mixer.Channel(i).get_busy()
+    if number_of_notes_playing == 0:
+            number_of_notes_playing = 1
     for note in w_notes+b_notes:
         note.draw()
-
-
-
+        note.note.set_volume(1-0.05*number_of_notes_playing)
+    
+        
+    
 
 if __name__ == "__main__":
     TWELVE_TONE_EQUAL_TEMP_FREQUENCIES = []
@@ -82,7 +91,10 @@ if __name__ == "__main__":
     KEYBOARD_Y = 303
     for i in range(149):
         TWELVE_TONE_EQUAL_TEMP_FREQUENCIES.append(440*2**((i-69)/12))
+    number_of_notes_playing = 0
     py.mixer.pre_init(44100, -16, 2, 2048)
+    py.mixer.init()
+    py.mixer.set_num_channels(64)
     py.init()
     view = py.display.set_mode((640,416))
     screen = py.Surface((640,416))
@@ -100,16 +112,27 @@ if __name__ == "__main__":
     b_key_normal = py.image.load('Resources/Black_Key_Normal.png')
     screen.blit(keyboard_base, (20, 289))
     for i in range(0, 21):
-        note = Note(w_key_normal, w_key_hovered, w_key_pressed, TWELVE_TONE_EQUAL_TEMP_FREQUENCIES[i+45], (KEYBOARD_X+i*24, KEYBOARD_Y), screen)
+        note = Note(w_key_normal, w_key_hovered, w_key_pressed, (KEYBOARD_X+i*24, KEYBOARD_Y), screen)
         w_notes.append(note)
+    
     for i in range (0, 2):
-        note = Note(b_key_normal, b_key_hovered, b_key_pressed, TWELVE_TONE_EQUAL_TEMP_FREQUENCIES[i+45], (KEYBOARD_X+i*26+15, KEYBOARD_Y), screen)
+        note = Note(b_key_normal, b_key_hovered, b_key_pressed, (KEYBOARD_X+i*26+15, KEYBOARD_Y), screen)
         b_notes.append(note)
     for i in range(0, 3):
-        note = Note(b_key_normal, b_key_hovered, b_key_pressed, TWELVE_TONE_EQUAL_TEMP_FREQUENCIES[i+45], (KEYBOARD_X+i*26+85, KEYBOARD_Y), screen)
+        note = Note(b_key_normal, b_key_hovered, b_key_pressed, (KEYBOARD_X+i*26+85, KEYBOARD_Y), screen)
         b_notes.append(note)
+
+
     notes = b_notes + w_notes
     notes_wb = w_notes + b_notes
+    x_note_id = {}
+    for note in notes_wb:
+        print(note.location)
+        x_note_id[note] = note.location[0]
+    x_note_id = dict(sorted(x_note_id.items(), key=lambda x: x[1]))
+    for i, note in enumerate(x_note_id.keys()):
+        note.base_frequency = TWELVE_TONE_EQUAL_TEMP_FREQUENCIES[i+40]
+        note.index = i
     while running:
         for event in py.event.get():
             if event.type == py.QUIT:
@@ -122,7 +145,7 @@ if __name__ == "__main__":
             elif event.type == py.MOUSEBUTTONUP:
                 mouse_note_check(w_notes, b_notes)
             elif event.type == py.MOUSEMOTION:
-                mouse_note_check(w_notes, b_notes) 
-        view.blit(screen, (0, 0))     
+                mouse_note_check(w_notes, b_notes)
+        view.blit(screen, (0, 0))
         py.display.update()
     quit()

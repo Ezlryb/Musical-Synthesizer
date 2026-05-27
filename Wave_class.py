@@ -38,12 +38,14 @@ class Wave:
 
         self.wav *= self.max_amplitude
         self.wav = np.asarray([32767*self.wav, 32767*self.wav]).T.astype(np.int16)
-
+'''
 py.init()
 wave1 = Wave(440, 'sin', 0.5, 44100, 1, 1, 1, 1)
 wave2 = Wave(4, 'sin', 1, 44100, 1, 1, 1, 1)
-wave3 = wave1.wav+wave2.wav
+wave3 = (wave1.wav+wave2.wav)*0.5
 wave3 = py.sndarray.make_sound(wave3.copy())
+#py.sndarray.make_sound(wave1.wav.copy()).play()
+#py.sndarray.make_sound(wave2.wav.copy()).play()
 wave3.play()
 running = True
 while running:
@@ -52,3 +54,4 @@ while running:
             running = False
 py.quit()
 
+'''
