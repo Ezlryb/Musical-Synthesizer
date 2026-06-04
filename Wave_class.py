@@ -38,20 +38,40 @@ class Wave:
 
         self.wav *= self.max_amplitude
         self.wav = np.asarray([32767*self.wav, 32767*self.wav]).T.astype(np.int16)
-'''
+
 py.init()
-wave1 = Wave(440, 'sin', 0.5, 44100, 1, 1, 1, 1)
-wave2 = Wave(4, 'sin', 1, 44100, 1, 1, 1, 1)
+wave1 = Wave(440, 'sin', 1, 44100, 1, 1, 1, 1)
+wave2 = Wave(1, 'sin', 1, 44100, 1, 1, 1, 1)
 wave3 = (wave1.wav+wave2.wav)*0.5
-wave3 = py.sndarray.make_sound(wave3.copy())
+wave3 = wave3.astype(np.int16)
+print('wave1')
+print(wave1.wav)
+print('wave3')
+print(wave3)
+#wave3 = py.sndarray.make_sound(wave3.copy())
 #py.sndarray.make_sound(wave1.wav.copy()).play()
 #py.sndarray.make_sound(wave2.wav.copy()).play()
-wave3.play()
+'''
 running = True
+channel = py.mixer.Channel(0)
+change = 1
+screen = py.display.set_mode((200,200))
+
 while running:
+
+
+    sound1 = py.sndarray.make_sound(wave3.copy())
+    if channel.get_busy() == 0:
+        channel.play(sound1)
     for event in py.event.get():
         if event.type == py.QUIT:
             running = False
+        if event.type == py.MOUSEBUTTONUP:
+            change += 1
+            wave1 = Wave(440, 'sin', 1, 44100, 1, 1, 1, 1)
+            wave2 = Wave(1*change, 'sin', 1, 44100, 1, 1, 1, 1)
+            wave3 = (wave1.wav+wave2.wav)*0.5
+            wave3 = wave3.astype(np.int16)
 py.quit()
 
 '''
