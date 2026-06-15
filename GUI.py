@@ -318,7 +318,7 @@ if __name__ == "__main__":
                 mouse_octave_key_check(event.type)
                 x = horizontal_slider_check(530*SCREEN_SCALE, 584*SCREEN_SCALE, 14*SCREEN_SCALE, volume_slider_interactable, volume_slider_interactable_rect)
                 volume_slider_interactable_rect.topleft = (x, 14*SCREEN_SCALE)
-                set_master_volume((x-530*SCREEN_SCALE)/54)
+                set_master_volume((x-530*SCREEN_SCALE)/(54*SCREEN_SCALE))
         if not py.mixer.Channel(0).get_busy():
             for note in notes:
                 note.loop_note()
