@@ -26,7 +26,11 @@ class Wave:
         self.max_duration = self.attack+self.decay+self.release
         self.frames = self.max_duration*self.sample_rate
         self.phase = self.max_duration
-        self.time_points = np.linspace(self.phase*self.loop, self.max_duration+self.phase*self.loop, self.frames, False)
+        self.attack_time_points = np.linspace(self.phase*self.loop, self.attack+self.phase*self.loop, self.frames, False)
+        self.decay_time_points = np.linspace(self.attack + self.phase*self.loop, self.attack + self.decay+self.phase*self.loop, self.frames, False)
+        self.sustain_time_points = np.linspace(self.attack + self.decay + self.phase*self.loop, self.attack + self.decay + self.sustain+self.phase*self.loop, self.frames, False)
+        self.release_time_points = np.linspace(self.phase*self.loop, self.release+self.phase*self.loop, self.frames, False)
+        self.time_points = np.concatenate((self.attack_time_points, self.decay_time_points, self.sustain_time_points))
         x = 2 * pi * self.frequency * self.time_points
         if self.wav_type == 'saw':
             self.wav = signal.sawtooth(x)

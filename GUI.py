@@ -5,6 +5,7 @@ from pathlib import *
 
 class Note:
     def __init__(self, normal_img, hovered_img, pressed_img, location, screen, volume):
+        global SUSTAINED_WAVE_DURATION
         self.screen = screen
         self.normal_img = normal_img
         self.hovered_img = hovered_img
@@ -18,13 +19,13 @@ class Note:
         self.volume = volume
         self.index = 0
         self.form = 'saw'
+        self.wave = Wave(self.base_frequency, self.form, self.volume, 44100, SUSTAINED_WAVE_DURATION)
         screen.blit(normal_img, location)
 
     def play_note(self):
         global total_wave
         global total_note
         global number_of_notes_playing
-        self.wave = Wave(self.base_frequency, self.form, self.volume, 44100, SUSTAINED_WAVE_DURATION)
         total_wave += self.wave.wav
         number_of_notes_playing += 1
         py.mixer.Channel(0).stop()
@@ -97,17 +98,23 @@ def mouse_note_check(w_notes, b_notes):
 def transpose(semitones):
     global frequencies
     global x_note_id
+    global SUSTAINED_WAVE_DURATION
     for i, note in enumerate(x_note_id.keys()):
         note.base_frequency = frequencies[i+semitones]
         note.index = i+1
+        note.wave = Wave(note.base_frequency, note.form, note.volume, 44100, SUSTAINED_WAVE_DURATION)
 
 def set_master_volume(volume):
+    global SUSTAINED_WAVE_DURATION
     for note in x_note_id.keys():
         note.volume = volume
+        note.wave = Wave(note.base_frequency, note.form, note.volume, 44100, SUSTAINED_WAVE_DURATION)
 
 def set_wave_form(form):
+    global SUSTAINED_WAVE_DURATION
     for note in x_note_id.keys():
         note.form = form
+        note.wave = Wave(note.base_frequency, note.form, note.volume, 44100, SUSTAINED_WAVE_DURATION)
 
 def mouse_octave_key_check(event):
     global lowest_frequency
@@ -318,7 +325,8 @@ if __name__ == "__main__":
                 mouse_octave_key_check(event.type)
                 x = horizontal_slider_check(530*SCREEN_SCALE, 584*SCREEN_SCALE, 14*SCREEN_SCALE, volume_slider_interactable, volume_slider_interactable_rect)
                 volume_slider_interactable_rect.topleft = (x, 14*SCREEN_SCALE)
-                set_master_volume((x-530*SCREEN_SCALE)/(54*SCREEN_SCALE))
+                if event.type == py.MOUSEBUTTONUP:
+                    set_master_volume((x-530*SCREEN_SCALE)/(54*SCREEN_SCALE))
         if not py.mixer.Channel(0).get_busy():
             for note in notes:
                 note.loop_note()
