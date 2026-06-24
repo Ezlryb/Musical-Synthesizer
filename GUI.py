@@ -2,6 +2,7 @@ import pygame as py
 from numpy import *
 from Wave_class import *
 from pathlib import *
+from matplotlib import pyplot as plt
 
 class Note:
     def __init__(self, normal_img, hovered_img, pressed_img, location, screen, volume):
@@ -19,14 +20,16 @@ class Note:
         self.volume = volume
         self.index = 0
         self.form = 'saw'
-        self.wave = Wave(self.base_frequency, self.form, self.volume, 44100, SUSTAINED_WAVE_DURATION)
+        self.wave = Wave2(440)
+        self.wave.update_play_wave()
+        self.wave.update_loop_wave()
         screen.blit(normal_img, location)
 
     def play_note(self):
         global total_wave
         global total_note
         global number_of_notes_playing
-        total_wave += self.wave.wav
+        total_wave += self.wave.play_wave
         number_of_notes_playing += 1
         py.mixer.Channel(0).stop()
         self.state = 'pressed'
@@ -37,7 +40,12 @@ class Note:
         global total_note
         global number_of_notes_playing
         if self.state == 'pressed':
-            total_wave -= self.wave.wav
+            print(self.wave.loop_duration)
+            if self.wave.loop == self.wave.loop_duration:
+                total_wave -= self.wave.play_wave
+            else:
+                total_wave -= self.wave.loop_wave
+            self.wave.loop = 0
             number_of_notes_playing -= 1
             py.mixer.Channel(0).stop()
         self.state = 'normal'
@@ -48,15 +56,18 @@ class Note:
 
     def draw(self):
         self.screen.blit(self.currect_img, self.location)
-    
+
+        
     def loop_note(self):
         global total_wave
         if self.state == 'pressed':
-            total_wave -= self.wave.wav
-            self.wave.update_wav()
-            total_wave += self.wave.wav
-        
-
+            if self.wave.loop == 0:
+                total_wave -= self.wave.play_wave
+            else:
+                self.wave.update_loop_wave()
+                total_wave -= self.wave.loop_wave
+            total_wave += self.wave.loop_wave
+            self.wave.update_loop_wave()
 
 def mouse_note_check(w_notes, b_notes):
     mouse_pos = py.mouse.get_pos()
@@ -100,21 +111,22 @@ def transpose(semitones):
     global x_note_id
     global SUSTAINED_WAVE_DURATION
     for i, note in enumerate(x_note_id.keys()):
-        note.base_frequency = frequencies[i+semitones]
+        note.wave.frequency = frequencies[i+semitones]
         note.index = i+1
-        note.wave = Wave(note.base_frequency, note.form, note.volume, 44100, SUSTAINED_WAVE_DURATION)
+        note.wave.update_play_wave()
 
 def set_master_volume(volume):
     global SUSTAINED_WAVE_DURATION
+    global x_note_id
     for note in x_note_id.keys():
-        note.volume = volume
-        note.wave = Wave(note.base_frequency, note.form, note.volume, 44100, SUSTAINED_WAVE_DURATION)
+        note.wave.amplitude = volume
+        note.wave.update_play_wave()
 
 def set_wave_form(form):
     global SUSTAINED_WAVE_DURATION
     for note in x_note_id.keys():
-        note.form = form
-        note.wave = Wave(note.base_frequency, note.form, note.volume, 44100, SUSTAINED_WAVE_DURATION)
+        note.wave.form = form
+        note.wave.update_play_wave()
 
 def mouse_octave_key_check(event):
     global lowest_frequency
@@ -159,14 +171,13 @@ def horizontal_slider_check(x1, x2, y, img, rect):
     return x
 
 
-
 if __name__ == "__main__":
     SCREEN_SCALE = 2
     KEYBOARD_X = 96
     KEYBOARD_Y = 303
     WHITE_NOTE_SPACING = 24
     BLACK_NOTE_SPACING = 26
-    SUSTAINED_WAVE_DURATION = 3
+    SUSTAINED_WAVE_DURATION = 1
     number_of_notes_playing = 1
     master_volume = 0.5
     lowest_frequency = 40
@@ -178,7 +189,9 @@ if __name__ == "__main__":
     screen = py.Surface((640*SCREEN_SCALE,416*SCREEN_SCALE))
     screen.fill('#02002c')
     py.display.set_caption('Synthesiser')
-    total_wave = Wave(3, 'sin', 0, 44100, SUSTAINED_WAVE_DURATION).wav
+    total_wave = Wave2(0)
+    total_wave.update_play_wave()
+    total_wave = total_wave.play_wave
     mixed_wave = np.asarray([32767*total_wave, 32767*total_wave]).T.astype(np.int16)
     mixed_wave = py.sndarray.make_sound(mixed_wave.copy())
     frequencies = []
@@ -202,6 +215,7 @@ if __name__ == "__main__":
     down_octave_key_pressed = py.transform.rotozoom(py.image.load('Resources/down_octave_key_pressed.png'), 0, SCREEN_SCALE)
     down_octave_key_hovered = py.transform.rotozoom(py.image.load('Resources/down_octave_key_hovered.png'), 0, SCREEN_SCALE)
     volume_slider_interactable = py.transform.rotozoom(py.image.load('Resources/slider_interactable.png'), 0, SCREEN_SCALE)
+    volume_slider_interactable.convert_alpha()
     volume_slider_left_path = py.transform.rotozoom(py.image.load('Resources/slider_path1.png'), 0, SCREEN_SCALE)
     volume_slider_right_path = py.transform.rotozoom(py.image.load('Resources/slider_path2.png'), 0, SCREEN_SCALE)
     screen.blit(controls_base, (9*SCREEN_SCALE, 6*SCREEN_SCALE))
@@ -247,22 +261,17 @@ if __name__ == "__main__":
                     if lowest_frequency > 1:
                         lowest_frequency -= 1
                         transpose(lowest_frequency)
+                elif event.key == py.K_q:
+                    wave = Wave(440, 'saw', 0.5, 44100, 0.2).wav
+                    array1 = np.asarray([32767*wave, 32767*wave]).T.astype(np.int16)
+                    note1 = py.sndarray.make_sound(array1.copy())
+                    py.mixer.Channel(0).play(note1)
                 elif event.key == py.K_1:
-                    set_wave_form('sin')
+                    set_wave_form(0)
                 elif event.key == py.K_2:
-                    set_wave_form('tri')
+                    set_wave_form(1)
                 elif event.key == py.K_3:
-                    set_wave_form('squ')
-                elif event.key == py.K_4:
-                    set_wave_form('saw')
-                elif event.key == py.K_5:
-                    set_wave_form('tan')
-                elif event.key == py.K_6:
-                    set_wave_form('revsaw')
-                elif event.key == py.K_7:
-                    set_wave_form('thicsaw')
-                elif event.key == py.K_8:
-                    set_wave_form('thicsqu')
+                    set_wave_form(2)
                 elif event.key == py.K_z:
                     w_notes[0].play_note()
                 elif event.key == py.K_x:
@@ -292,7 +301,8 @@ if __name__ == "__main__":
 
             elif event.type == py.KEYUP:
                 if event.key == py.K_q:
-                    notes[0].release_note(py.mouse.get_pos())
+                    plt.plot(mixed_wave)
+                    plt.show()
                 elif event.key == py.K_z:
                     w_notes[0].release_note(py.mouse.get_pos())
                 elif event.key == py.K_x:
