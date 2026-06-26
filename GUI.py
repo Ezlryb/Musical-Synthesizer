@@ -6,7 +6,6 @@ from matplotlib import pyplot as plt
 
 class Note:
     def __init__(self, normal_img, hovered_img, pressed_img, location, screen, volume):
-        global SUSTAINED_WAVE_DURATION
         self.screen = screen
         self.normal_img = normal_img
         self.hovered_img = hovered_img
@@ -21,8 +20,7 @@ class Note:
         self.index = 0
         self.form = 'saw'
         self.wave = Wave2(440)
-        self.wave.update_play_wave()
-        self.wave.update_loop_wave()
+        self.wave.update_total_wave()
         screen.blit(normal_img, location)
 
     def play_note(self):
@@ -40,15 +38,12 @@ class Note:
         global total_note
         global number_of_notes_playing
         if self.state == 'pressed':
-            print(self.wave.loop_duration)
-            if self.wave.loop == self.wave.loop_duration:
-                total_wave -= self.wave.play_wave
-            else:
-                total_wave -= self.wave.loop_wave
-            self.wave.loop = 0
+            """total_wave -= self.wave.play_wave
+            self.wave.update_loop_wave('release')
+            total_wave += self.wave.play_wave
+            py.mixer.Channel(0).stop()"""
             number_of_notes_playing -= 1
-            py.mixer.Channel(0).stop()
-        self.state = 'normal'
+            self.state = 'releasing'
         if self.rect.collidepoint(mouse_pos):
             self.currect_img = self.hovered_img
         else:
@@ -56,18 +51,25 @@ class Note:
 
     def draw(self):
         self.screen.blit(self.currect_img, self.location)
-
         
     def loop_note(self):
         global total_wave
         if self.state == 'pressed':
-            if self.wave.loop == 0:
-                total_wave -= self.wave.play_wave
+            total_wave -= self.wave.play_wave
+            self.wave.update_loop_wave('sustain')
+            total_wave += self.wave.play_wave
+        if self.state == 'releasing':
+            
+            total_wave -= self.wave.play_wave
+            print('thing')
+            print(total_wave)
+            print(self.wave.play_wave)
+            if self.wave.update_loop_wave('release'):
+                total_wave += self.wave.play_wave
             else:
-                self.wave.update_loop_wave()
-                total_wave -= self.wave.loop_wave
-            total_wave += self.wave.loop_wave
-            self.wave.update_loop_wave()
+                self.state = 'normal'
+
+
 
 def mouse_note_check(w_notes, b_notes):
     mouse_pos = py.mouse.get_pos()
@@ -89,12 +91,12 @@ def mouse_note_check(w_notes, b_notes):
                 note.release_note((0, 0))
     if py.mouse.get_pressed()[0]:
         if over_b_key:
-            if key.state == 'normal':
+            if key.state == 'normal' or key.state == 'releasing':
                 key.play_note()
                 for note in w_notes:
                     note.release_note((0, 0))
         elif over_w_key:
-            if key.rect.collidepoint(mouse_pos) and key.state == 'normal':
+            if key.rect.collidepoint(mouse_pos) and (key.state == 'normal' or key.state == 'releasing'):
                 key.play_note()
             elif key.state == 'pressed' and not key.rect.collidepoint(mouse_pos):
                 key.release_note(mouse_pos)
@@ -109,24 +111,21 @@ def mouse_note_check(w_notes, b_notes):
 def transpose(semitones):
     global frequencies
     global x_note_id
-    global SUSTAINED_WAVE_DURATION
     for i, note in enumerate(x_note_id.keys()):
         note.wave.frequency = frequencies[i+semitones]
         note.index = i+1
-        note.wave.update_play_wave()
+        note.wave.update_total_wave()
 
 def set_master_volume(volume):
-    global SUSTAINED_WAVE_DURATION
     global x_note_id
     for note in x_note_id.keys():
         note.wave.amplitude = volume
-        note.wave.update_play_wave()
+        note.wave.update_total_wave()
 
 def set_wave_form(form):
-    global SUSTAINED_WAVE_DURATION
     for note in x_note_id.keys():
-        note.wave.form = form
-        note.wave.update_play_wave()
+        note.wave.wave_form = form
+        note.wave.update_total_wave()
 
 def mouse_octave_key_check(event):
     global lowest_frequency
@@ -177,7 +176,6 @@ if __name__ == "__main__":
     KEYBOARD_Y = 303
     WHITE_NOTE_SPACING = 24
     BLACK_NOTE_SPACING = 26
-    SUSTAINED_WAVE_DURATION = 1
     number_of_notes_playing = 1
     master_volume = 0.5
     lowest_frequency = 40
@@ -190,7 +188,7 @@ if __name__ == "__main__":
     screen.fill('#02002c')
     py.display.set_caption('Synthesiser')
     total_wave = Wave2(0)
-    total_wave.update_play_wave()
+    total_wave.update_total_wave()
     total_wave = total_wave.play_wave
     mixed_wave = np.asarray([32767*total_wave, 32767*total_wave]).T.astype(np.int16)
     mixed_wave = py.sndarray.make_sound(mixed_wave.copy())
@@ -262,10 +260,10 @@ if __name__ == "__main__":
                         lowest_frequency -= 1
                         transpose(lowest_frequency)
                 elif event.key == py.K_q:
-                    wave = Wave(440, 'saw', 0.5, 44100, 0.2).wav
+                    """wave = Wave(440, 'saw', 0.5, 44100, 0.2).wav
                     array1 = np.asarray([32767*wave, 32767*wave]).T.astype(np.int16)
                     note1 = py.sndarray.make_sound(array1.copy())
-                    py.mixer.Channel(0).play(note1)
+                    py.mixer.Channel(0).play(note1)"""
                 elif event.key == py.K_1:
                     set_wave_form(0)
                 elif event.key == py.K_2:
@@ -340,14 +338,14 @@ if __name__ == "__main__":
         if not py.mixer.Channel(0).get_busy():
             for note in notes:
                 note.loop_note()
-            mixed_wave = total_wave*(1/number_of_notes_playing)
+            mixed_wave = (master_volume * total_wave)
             mixed_wave = np.asarray([32767*mixed_wave, 32767*mixed_wave]).T.astype(np.int16)
             total_note = py.sndarray.make_sound(mixed_wave.copy())
             py.mixer.Channel(0).play(total_note)
-        if py.mixer.Channel(0).get_queue() == None or py.mixer.Channel(0).get_queue().get_length() <= SUSTAINED_WAVE_DURATION:
+        if py.mixer.Channel(0).get_queue() == None:
             for note in notes:
                 note.loop_note()
-            mixed_wave = total_wave*(1/number_of_notes_playing)
+            mixed_wave = (master_volume * total_wave) #*(1/number_of_notes_playing)
             mixed_wave = np.asarray([32767*mixed_wave, 32767*mixed_wave]).T.astype(np.int16)
             total_note = py.sndarray.make_sound(mixed_wave.copy())
             py.mixer.Channel(0).queue(total_note)
