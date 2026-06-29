@@ -4,6 +4,71 @@ from Wave_class import *
 from pathlib import *
 from matplotlib import pyplot as plt
 
+
+class ADSR_Slider:
+    def __init__(self, interactable_area, x1, x2, y1, y2, slider_grip_img):
+        self.interactable_area = interactable_area
+        self.x1 = x1
+        self.x2 = x2
+        self.y1 = y1
+        self.y2 = y2
+        self.slider_grip_img = slider_grip_img
+
+    def initial_click_check(self):
+        if self.slider_grip_img.collide_point(py.mouse.get_pos()):
+            self.is_interacted_with = True
+            self.initial_mouse_pos = py.mouse.get_pos()
+        else:
+            self.is_interacted_with = False
+
+    def move1(self):
+        if py.mouse.get_pos()[0] != self.initial_mouse_pos[0]:
+            if self.x1 <= py.mouse.get_pos()[0] and py.mouse.get_pos()[0] <= self.x2:
+                new_x = py.mouse.get_pos()[0]
+            elif self.x1 >= py.mouse.get_pos()[0]:
+                new_x = self.x1
+            else:
+                new_x = self.x2
+        elif py.mouse.get_pos()[1] != self.initial_mouse_pos[1]:
+            if self.y1 <= py.mouse.get_pos()[1] and py.mouse.get_pos()[1] <= self.y2:
+                new_y = py.mouse.get_pos()[1]
+            elif self.y1 >= py.mouse.get_pos()[1]:
+                new_y = self.y1
+            else:
+                new_y = self.y2
+        else:
+            new_x = py.mouse.get_pos()[0]
+            new_y = py.mouse.get_pos()[1]
+        screen.blit(self.slider_grip_img, (new_x, new_y))
+        return [new_x, new_y]
+            
+    
+    def move2(self):
+        grip_x = self.slider_grip_img.get_pos()[0]
+        grip_y = self.slider_grip_img.get_pos()[1]
+        if py.mouse.get_pos()[0] != self.initial_mouse_pos[0]:
+            difference_x = self.initial_mouse_pos[0] - py.mouse.get_pos()[0]
+            if self.x1 <= grip_x + difference_x and grip_x + difference_x <= self.x2:
+                new_x = grip_x + difference_x
+            elif self.x1 >= grip_x + difference_x:
+                new_x = self.x1
+            else:
+                new_x = self.x2
+        elif py.mouse.get_pos()[1] != self.initial_mouse_pos[1]:
+            difference_y = self.initial_mouse_pos[1] - py.mouse.get_pos()[1]
+            if self.y1 <= grip_y + difference_y and grip_y + difference_y <= self.y2:
+                new_y = grip_y + difference_y
+            elif self.y1 >= grip_y + difference_y:
+                new_y = self.y1
+            else:
+                new_y = self.y2
+        else:
+            new_x = grip_x
+            new_y = grip_y
+        return [new_x, new_y]
+            
+
+
 class Note:
     def __init__(self, normal_img, hovered_img, pressed_img, location, screen, volume):
         self.screen = screen
@@ -19,29 +84,23 @@ class Note:
         self.volume = volume
         self.index = 0
         self.form = 'saw'
-        self.wave = Wave2(440)
+        self.wave = Wave3(440)
         self.wave.update_total_wave()
         screen.blit(normal_img, location)
 
     def play_note(self):
         global total_wave
-        global total_note
         global number_of_notes_playing
+        self.wave.update_loop_wave('sustain')
         total_wave += self.wave.play_wave
         number_of_notes_playing += 1
-        py.mixer.Channel(0).stop()
         self.state = 'pressed'
         self.currect_img = self.pressed_img
 
     def release_note(self, mouse_pos):
         global total_wave
-        global total_note
         global number_of_notes_playing
         if self.state == 'pressed':
-            """total_wave -= self.wave.play_wave
-            self.wave.update_loop_wave('release')
-            total_wave += self.wave.play_wave
-            py.mixer.Channel(0).stop()"""
             number_of_notes_playing -= 1
             self.state = 'releasing'
         if self.rect.collidepoint(mouse_pos):
@@ -55,22 +114,15 @@ class Note:
     def loop_note(self):
         global total_wave
         if self.state == 'pressed':
-            total_wave -= self.wave.play_wave
             self.wave.update_loop_wave('sustain')
             total_wave += self.wave.play_wave
         if self.state == 'releasing':
-            
-            total_wave -= self.wave.play_wave
-            print('thing')
-            print(total_wave)
-            print(self.wave.play_wave)
             if self.wave.update_loop_wave('release'):
-                total_wave += self.wave.play_wave
-            else:
                 self.state = 'normal'
-
-
-
+                self.wave.loop = 0
+            else:
+                total_wave += self.wave.play_wave  
+                
 def mouse_note_check(w_notes, b_notes):
     mouse_pos = py.mouse.get_pos()
     over_w_key = False
@@ -187,18 +239,18 @@ if __name__ == "__main__":
     screen = py.Surface((640*SCREEN_SCALE,416*SCREEN_SCALE))
     screen.fill('#02002c')
     py.display.set_caption('Synthesiser')
-    total_wave = Wave2(0)
+    total_wave = Wave3(0)
     total_wave.update_total_wave()
+    total_wave.update_loop_wave('sustain')
     total_wave = total_wave.play_wave
     mixed_wave = np.asarray([32767*total_wave, 32767*total_wave]).T.astype(np.int16)
     mixed_wave = py.sndarray.make_sound(mixed_wave.copy())
-    frequencies = []
-    for i in range(149):
-        frequencies.append(440*2**((i-69)/12))
+    frequencies = 27.5 * 2 ** (np.arange(88) / 12)
     running = True
     w_notes = []
     b_notes = []
-    controls_base = py.transform.rotozoom(py.image.load('Resources/controls_base.png'), 0, SCREEN_SCALE)
+    controls_base_img = py.image.load('Resources/controls_base.png')
+    controls_base = py.transform.smoothscale(py.image.load('Resources/controls_base.png'), (controls_base_img.get_width() * SCREEN_SCALE, controls_base_img.get_height() * SCREEN_SCALE))
     keyboard_base = py.transform.rotozoom(py.image.load('Resources/Keyboard_Base.png'), 0, SCREEN_SCALE)
     w_key_pressed = py.transform.rotozoom(py.image.load('Resources/White_Key_Pressed.png'), 0, SCREEN_SCALE)
     w_key_hovered = py.transform.rotozoom(py.image.load('Resources/White_Key_Hovered.png'), 0, SCREEN_SCALE)
@@ -216,6 +268,8 @@ if __name__ == "__main__":
     volume_slider_interactable.convert_alpha()
     volume_slider_left_path = py.transform.rotozoom(py.image.load('Resources/slider_path1.png'), 0, SCREEN_SCALE)
     volume_slider_right_path = py.transform.rotozoom(py.image.load('Resources/slider_path2.png'), 0, SCREEN_SCALE)
+    adsr_slider_interactable = py.transform.rotozoom(py.image.load('Resources/ADSR_slider_interactable.png'), 0, SCREEN_SCALE/4)
+    attack_slider = ADSR_Slider(py.Rect(224, 205, 10, 40), 229, 229, 238, 211, adsr_slider_interactable)
     screen.blit(controls_base, (9*SCREEN_SCALE, 6*SCREEN_SCALE))
     screen.blit(keyboard_base, (20*SCREEN_SCALE, 289*SCREEN_SCALE))
     screen.blit(up_octave_key_normal, (40*SCREEN_SCALE, 298*SCREEN_SCALE))
@@ -227,6 +281,7 @@ if __name__ == "__main__":
     down_octave_key_rect.topleft = (40*SCREEN_SCALE, 322*SCREEN_SCALE)
     volume_slider_interactable_rect = volume_slider_interactable.get_rect()
     volume_slider_interactable_rect.topleft = (584*SCREEN_SCALE, 14*SCREEN_SCALE)
+    
     for i in range(0, 21):
         note = Note(w_key_normal, w_key_hovered, w_key_pressed, ((KEYBOARD_X+i*WHITE_NOTE_SPACING)*SCREEN_SCALE, KEYBOARD_Y*SCREEN_SCALE), screen, master_volume)
         w_notes.append(note)
@@ -259,11 +314,6 @@ if __name__ == "__main__":
                     if lowest_frequency > 1:
                         lowest_frequency -= 1
                         transpose(lowest_frequency)
-                elif event.key == py.K_q:
-                    """wave = Wave(440, 'saw', 0.5, 44100, 0.2).wav
-                    array1 = np.asarray([32767*wave, 32767*wave]).T.astype(np.int16)
-                    note1 = py.sndarray.make_sound(array1.copy())
-                    py.mixer.Channel(0).play(note1)"""
                 elif event.key == py.K_1:
                     set_wave_form(0)
                 elif event.key == py.K_2:
@@ -333,19 +383,30 @@ if __name__ == "__main__":
                 mouse_octave_key_check(event.type)
                 x = horizontal_slider_check(530*SCREEN_SCALE, 584*SCREEN_SCALE, 14*SCREEN_SCALE, volume_slider_interactable, volume_slider_interactable_rect)
                 volume_slider_interactable_rect.topleft = (x, 14*SCREEN_SCALE)
+                attack_slider.move1
                 if event.type == py.MOUSEBUTTONUP:
-                    set_master_volume((x-530*SCREEN_SCALE)/(54*SCREEN_SCALE))
+                    set_master_volume(((x-530*SCREEN_SCALE)/(54*SCREEN_SCALE))*0.5)
+                
+                
+
+
         if not py.mixer.Channel(0).get_busy():
+            total_wave[:] = 0
             for note in notes:
                 note.loop_note()
             mixed_wave = (master_volume * total_wave)
+            if round(np.max(total_wave), 5) >= 1.0:
+                mixed_wave /= np.max(total_wave)
             mixed_wave = np.asarray([32767*mixed_wave, 32767*mixed_wave]).T.astype(np.int16)
             total_note = py.sndarray.make_sound(mixed_wave.copy())
             py.mixer.Channel(0).play(total_note)
         if py.mixer.Channel(0).get_queue() == None:
+            total_wave[:] = 0
             for note in notes:
                 note.loop_note()
-            mixed_wave = (master_volume * total_wave) #*(1/number_of_notes_playing)
+            mixed_wave = (master_volume * total_wave)
+            if round(np.max(total_wave), 5) >= 1.0:
+                mixed_wave /= np.max(total_wave)
             mixed_wave = np.asarray([32767*mixed_wave, 32767*mixed_wave]).T.astype(np.int16)
             total_note = py.sndarray.make_sound(mixed_wave.copy())
             py.mixer.Channel(0).queue(total_note)
