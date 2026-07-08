@@ -197,7 +197,7 @@ class Wave3:
         x = np.linspace(self.loop, self.loop + self.loop_duration, end - start)    
         self.play_wave = self.play_form * self.wave(x)
         self.loop += self.loop_duration
-        self.loop = round(self.loop, 5)
+        self.loop = round(self.loop, 8)
         if mode == 'release':
-            return round(np.min(self.play_form), 3) == 0
+            return round(np.min(self.play_form), 5) == 0
 

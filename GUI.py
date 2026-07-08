@@ -12,60 +12,76 @@ class ADSR_Slider:
         self.x2 = x2
         self.y1 = y1
         self.y2 = y2
+        self.interactable_area = interactable_area
         self.slider_grip_img = slider_grip_img
+        self.currect_x = x2
+        self.currect_y = y2
+        self.is_interacted_with = False
+        self.initial_mouse_pos = (0,0)
+        
 
     def initial_click_check(self):
-        if self.slider_grip_img.collide_point(py.mouse.get_pos()):
+        self.slider_grip_rect = self.slider_grip_img.get_rect()
+        if self.interactable_area.collidepoint(py.mouse.get_pos()):
             self.is_interacted_with = True
             self.initial_mouse_pos = py.mouse.get_pos()
+            self.initial_slider_pos = (self.currect_x, self.currect_y)
         else:
             self.is_interacted_with = False
 
     def move1(self):
-        if py.mouse.get_pos()[0] != self.initial_mouse_pos[0]:
-            if self.x1 <= py.mouse.get_pos()[0] and py.mouse.get_pos()[0] <= self.x2:
-                new_x = py.mouse.get_pos()[0]
-            elif self.x1 >= py.mouse.get_pos()[0]:
-                new_x = self.x1
+        if self.is_interacted_with:
+            if py.mouse.get_pos()[0] != self.initial_mouse_pos[0] and py.mouse.get_pressed()[0]:
+                if self.x1 <= py.mouse.get_pos()[0] and py.mouse.get_pos()[0] <= self.x2:
+                    new_x = py.mouse.get_pos()[0]
+                elif self.x1 >= py.mouse.get_pos()[0]:
+                    new_x = self.x1
+                else:
+                    new_x = self.x2
             else:
-                new_x = self.x2
-        elif py.mouse.get_pos()[1] != self.initial_mouse_pos[1]:
-            if self.y1 <= py.mouse.get_pos()[1] and py.mouse.get_pos()[1] <= self.y2:
-                new_y = py.mouse.get_pos()[1]
-            elif self.y1 >= py.mouse.get_pos()[1]:
-                new_y = self.y1
+                new_x = self.currect_x
+            if py.mouse.get_pos()[1] != self.initial_mouse_pos[1] and py.mouse.get_pressed()[0]:
+                if self.y1 <= py.mouse.get_pos()[1] and py.mouse.get_pos()[1] <= self.y2:
+                    new_y = py.mouse.get_pos()[1]
+                elif self.y1 >= py.mouse.get_pos()[1]:
+                    new_y = self.y1
+                else:
+                    new_y = self.currect_y
             else:
-                new_y = self.y2
-        else:
-            new_x = py.mouse.get_pos()[0]
-            new_y = py.mouse.get_pos()[1]
-        screen.blit(self.slider_grip_img, (new_x, new_y))
-        return [new_x, new_y]
+                new_y = self.currect_y
+            self.currect_x = new_x
+            self.currect_y = new_y
+        screen.blit(self.slider_grip_img, (self.currect_x, self.currect_y))
             
     
     def move2(self):
-        grip_x = self.slider_grip_img.get_pos()[0]
-        grip_y = self.slider_grip_img.get_pos()[1]
-        if py.mouse.get_pos()[0] != self.initial_mouse_pos[0]:
-            difference_x = self.initial_mouse_pos[0] - py.mouse.get_pos()[0]
-            if self.x1 <= grip_x + difference_x and grip_x + difference_x <= self.x2:
-                new_x = grip_x + difference_x
-            elif self.x1 >= grip_x + difference_x:
-                new_x = self.x1
+        if self.is_interacted_with:
+            grip_x = self.currect_x
+            grip_y = self.currect_y
+            if py.mouse.get_pos()[0] != self.initial_mouse_pos[0]:
+                difference_x = self.initial_mouse_pos[0] - py.mouse.get_pos()[0]
+                if self.x1 <= self.initial_slider_pos[0] - difference_x and self.initial_slider_pos[0] - difference_x <= self.x2:
+                    new_x = self.initial_slider_pos[0] - difference_x
+                elif self.x1 >= self.initial_slider_pos[0] - difference_x:
+                    new_x = self.x1
+                else:
+                    new_x = self.x2
             else:
-                new_x = self.x2
-        elif py.mouse.get_pos()[1] != self.initial_mouse_pos[1]:
-            difference_y = self.initial_mouse_pos[1] - py.mouse.get_pos()[1]
-            if self.y1 <= grip_y + difference_y and grip_y + difference_y <= self.y2:
-                new_y = grip_y + difference_y
-            elif self.y1 >= grip_y + difference_y:
-                new_y = self.y1
+                new_x = grip_x
+            if py.mouse.get_pos()[1] != self.initial_mouse_pos[1]:
+                difference_y = self.initial_mouse_pos[1] - py.mouse.get_pos()[1]
+                if self.y1 <= self.initial_slider_pos[1] - difference_y and self.initial_slider_pos[1] - difference_y <= self.y2:
+                    new_y = self.initial_slider_pos[1] - difference_y
+                elif self.y1 >= self.initial_slider_pos[1] - difference_y:
+                    new_y = self.y1
+                else:
+                    new_y = self.y2
             else:
-                new_y = self.y2
-        else:
-            new_x = grip_x
-            new_y = grip_y
-        return [new_x, new_y]
+                new_y = grip_y
+            self.currect_x = new_x
+            self.currect_y = new_y
+        screen.blit(self.slider_grip_img, (self.currect_x, self.currect_y))
+        return (self.x1 - self.currect_x, self.y1 - self.currect_y)
             
 
 
@@ -223,7 +239,7 @@ def horizontal_slider_check(x1, x2, y, img, rect):
 
 
 if __name__ == "__main__":
-    SCREEN_SCALE = 2
+    SCREEN_SCALE = 1
     KEYBOARD_X = 96
     KEYBOARD_Y = 303
     WHITE_NOTE_SPACING = 24
@@ -268,8 +284,15 @@ if __name__ == "__main__":
     volume_slider_interactable.convert_alpha()
     volume_slider_left_path = py.transform.rotozoom(py.image.load('Resources/slider_path1.png'), 0, SCREEN_SCALE)
     volume_slider_right_path = py.transform.rotozoom(py.image.load('Resources/slider_path2.png'), 0, SCREEN_SCALE)
-    adsr_slider_interactable = py.transform.rotozoom(py.image.load('Resources/ADSR_slider_interactable.png'), 0, SCREEN_SCALE/4)
-    attack_slider = ADSR_Slider(py.Rect(224, 205, 10, 40), 229, 229, 238, 211, adsr_slider_interactable)
+    
+    
+    asdr_slider_interactable_img = py.transform.rotozoom(py.image.load('Resources/ADSR_slider_interactable.png'), 0, SCREEN_SCALE/4)
+
+    osccilator_one_asdr_sliders = []
+    SPACING = 22
+    for i in range(4):
+        osccilator_one_asdr_sliders.append(ADSR_Slider(py.Rect((215+SPACING*i)*SCREEN_SCALE, 205*SCREEN_SCALE, 16*SCREEN_SCALE, 50*SCREEN_SCALE), (218+SPACING*i)*SCREEN_SCALE, (218+SPACING*i)*SCREEN_SCALE, 207*SCREEN_SCALE, 232*SCREEN_SCALE, asdr_slider_interactable_img))
+    
     screen.blit(controls_base, (9*SCREEN_SCALE, 6*SCREEN_SCALE))
     screen.blit(keyboard_base, (20*SCREEN_SCALE, 289*SCREEN_SCALE))
     screen.blit(up_octave_key_normal, (40*SCREEN_SCALE, 298*SCREEN_SCALE))
@@ -383,19 +406,23 @@ if __name__ == "__main__":
                 mouse_octave_key_check(event.type)
                 x = horizontal_slider_check(530*SCREEN_SCALE, 584*SCREEN_SCALE, 14*SCREEN_SCALE, volume_slider_interactable, volume_slider_interactable_rect)
                 volume_slider_interactable_rect.topleft = (x, 14*SCREEN_SCALE)
-                attack_slider.move1
-                if event.type == py.MOUSEBUTTONUP:
-                    set_master_volume(((x-530*SCREEN_SCALE)/(54*SCREEN_SCALE))*0.5)
+                for item in osccilator_one_asdr_sliders:
+                    item.move2()
+            if event.type == py.MOUSEBUTTONDOWN:
+                for item in osccilator_one_asdr_sliders:
+                    item.initial_click_check()
+            if event.type == py.MOUSEBUTTONUP:
+                for item in osccilator_one_asdr_sliders:
+                    item.is_interacted_with = False
+                set_master_volume(((x-530*SCREEN_SCALE)/(54*SCREEN_SCALE))*0.5)
                 
-                
-
 
         if not py.mixer.Channel(0).get_busy():
             total_wave[:] = 0
             for note in notes:
                 note.loop_note()
             mixed_wave = (master_volume * total_wave)
-            if round(np.max(total_wave), 5) >= 1.0:
+            if round(np.max(total_wave), 5) > 1.0:
                 mixed_wave /= np.max(total_wave)
             mixed_wave = np.asarray([32767*mixed_wave, 32767*mixed_wave]).T.astype(np.int16)
             total_note = py.sndarray.make_sound(mixed_wave.copy())
@@ -405,7 +432,7 @@ if __name__ == "__main__":
             for note in notes:
                 note.loop_note()
             mixed_wave = (master_volume * total_wave)
-            if round(np.max(total_wave), 5) >= 1.0:
+            if round(np.max(total_wave), 5) > 1.0:
                 mixed_wave /= np.max(total_wave)
             mixed_wave = np.asarray([32767*mixed_wave, 32767*mixed_wave]).T.astype(np.int16)
             total_note = py.sndarray.make_sound(mixed_wave.copy())
