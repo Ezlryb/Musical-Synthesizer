@@ -8,7 +8,7 @@ import pstats
 
 
 class ADSR_Slider:
-    def __init__(self, interactable_area, x1, x2, y1, y2, slider_grip_img):
+    def __init__(self, interactable_area, x1, x2, y1, y2, slider_grip_img, x_track_boundaries, y_track_boundaries, track_imgs):
         self.interactable_area = interactable_area
         self.x1 = x1
         self.x2 = x2
@@ -18,8 +18,15 @@ class ADSR_Slider:
         self.slider_grip_img = slider_grip_img
         self.currect_x = x2
         self.currect_y = y2
+        self.track_imgs = track_imgs
+        self.x_track_boundaries = x_track_boundaries
+        self.y_track_boundaries = y_track_boundaries
+        self.currect_track_img = track_imgs[0]
         self.is_interacted_with = False
         self.initial_mouse_pos = (0,0)
+        self.track_check()
+        screen.blit(self.currect_track_img, (self.x1, self.y1))
+        screen.blit(self.slider_grip_img, (self.currect_x, self.currect_y))
         
 
     def initial_click_check(self):
@@ -30,6 +37,14 @@ class ADSR_Slider:
             self.initial_slider_pos = (self.currect_x, self.currect_y)
         else:
             self.is_interacted_with = False
+
+    def track_check(self):
+        for i, n in enumerate(self.y_track_boundaries):
+            print(n)
+            print(self.currect_y)
+            if n >= self.currect_y:
+                self.currect_track_img = self.track_imgs[i]
+
 
     def move1(self):
         if self.is_interacted_with:
@@ -59,7 +74,6 @@ class ADSR_Slider:
         if self.is_interacted_with:
             return (self.x2 - self.currect_x, self.y2 - self.currect_y)
             
-    
     def move2(self):
         if self.is_interacted_with:
             grip_x = self.currect_x
@@ -86,6 +100,8 @@ class ADSR_Slider:
                 new_y = grip_y
             self.currect_x = new_x
             self.currect_y = new_y
+            self.track_check()
+        screen.blit(self.currect_track_img, (self.x1, self.y1))
         screen.blit(self.slider_grip_img, (self.currect_x, self.currect_y))
         if self.is_interacted_with:
             return (self.x2 - self.currect_x, self.y2 - self.currect_y)
@@ -284,16 +300,22 @@ if __name__ == "__main__":
     volume_slider_interactable.convert_alpha()
     volume_slider_left_path = set_up_img('Resources/slider_path1.png')
     volume_slider_right_path = set_up_img('Resources/slider_path2.png')
-    asdr_slider_interactable_img = set_up_img('Resources/ADSR_slider_interactable.png')
+    asdr_slider_interactable = set_up_img('Resources/ADSR_slider_interactable.png')
+    asdr_track1 = set_up_img('Resources/asdr_track1.png')
+    asdr_track2 = set_up_img('Resources/asdr_track2.png')
+    asdr_track3 = set_up_img('Resources/asdr_track3.png')
+    osccilator_base = set_up_img('Resources/osccilator_base.png')
 
     osccilator_one_asdr_sliders = []
     SPACING = 22
     for i in range(4):
-        osccilator_one_asdr_sliders.append(ADSR_Slider(py.Rect((215+SPACING*i)*SCREEN_SCALE, 205*SCREEN_SCALE, 16*SCREEN_SCALE, 50*SCREEN_SCALE), (218+SPACING*i)*SCREEN_SCALE, (218+SPACING*i)*SCREEN_SCALE, 207*SCREEN_SCALE, 232*SCREEN_SCALE, asdr_slider_interactable_img))
+        osccilator_one_asdr_sliders.append(ADSR_Slider(py.Rect((215+SPACING*i)*SCREEN_SCALE, 205*SCREEN_SCALE, 16*SCREEN_SCALE, 50*SCREEN_SCALE), (218+SPACING*i)*SCREEN_SCALE, (218+SPACING*i)*SCREEN_SCALE, 207*SCREEN_SCALE, 232*SCREEN_SCALE, asdr_slider_interactable, [(218+SPACING*i)*SCREEN_SCALE, (218+SPACING*i)*SCREEN_SCALE], [232*SCREEN_SCALE, 222*SCREEN_SCALE, 212*SCREEN_SCALE], [asdr_track1, asdr_track2, asdr_track3]))
     
-
-    screen.blit(controls_base, (9*SCREEN_SCALE, 6*SCREEN_SCALE))
-    screen.blit(keyboard_base, (9*SCREEN_SCALE, 288*SCREEN_SCALE))
+    bases = py.Surface((640*SCREEN_SCALE,416*SCREEN_SCALE))
+    bases.blit(controls_base, (9*SCREEN_SCALE, 6*SCREEN_SCALE))
+    bases.blit(keyboard_base, (9*SCREEN_SCALE, 288*SCREEN_SCALE))
+    bases.blit(osccilator_base, (47*SCREEN_SCALE, 188*SCREEN_SCALE))
+    screen.blit(bases, (0,0))
     screen.blit(up_octave_key_normal, (35*SCREEN_SCALE, 297*SCREEN_SCALE))
     screen.blit(down_octave_key_normal, (35*SCREEN_SCALE, 321*SCREEN_SCALE))
     screen.blit(volume_slider_interactable, (584*SCREEN_SCALE, 14*SCREEN_SCALE))
@@ -418,17 +440,15 @@ if __name__ == "__main__":
                 last_note_mouse_was_over.append(mouse_note_check(w_notes, b_notes, last_note_mouse_was_over))
                 while None in last_note_mouse_was_over:
                     last_note_mouse_was_over.pop(last_note_mouse_was_over.index(None))
-                screen.blit(controls_base, (9*SCREEN_SCALE, 6*SCREEN_SCALE))
-                screen.blit(keyboard_base, (9*SCREEN_SCALE, 288*SCREEN_SCALE))
+                screen.blit(bases, (0,0))
                 for note in notes_wb:
                     note.draw()
                 mouse_octave_key_check(event.type)
                 x = horizontal_slider_check(530*SCREEN_SCALE, 584*SCREEN_SCALE, 14*SCREEN_SCALE, volume_slider_interactable, volume_slider_interactable_rect)
                 volume_slider_interactable_rect.topleft = (x, 14*SCREEN_SCALE)
-                for item in osccilator_one_asdr_sliders:
-                    message = item.move2()
-                    if message != None:
-                        print(message)
+                for slider in osccilator_one_asdr_sliders:
+                    coords = slider.move2()
+
             if event.type == py.MOUSEBUTTONDOWN:
                 for item in osccilator_one_asdr_sliders:
                     item.initial_click_check()
