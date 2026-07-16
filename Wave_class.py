@@ -171,9 +171,9 @@ class Wave3:
         elif self.wave_form == 1:
             self.wave = lambda x: self.amplitude * signal.sawtooth(2 * np.pi * self.frequency * x, width=0.5)
         elif self.wave_form == 2:
-            self.wave = lambda x: self.amplitude * signal.sawtooth(2 * np.pi * self.frequency * x)
-        elif self.wave_form == 3:
             self.wave = lambda x: self.amplitude * signal.square(2 * np.pi * self.frequency * x)
+        elif self.wave_form == 3:
+            self.wave = lambda x: self.amplitude * signal.sawtooth(2 * np.pi * self.frequency * x)
         x1 = np.linspace(0, self.attack, int(self.attack * self.sample_rate), False)
         x2 = np.linspace(self.attack, self.attack + self.decay, int(self.decay * self.sample_rate), False)
         self.x = np.concatenate([x1,x2])
