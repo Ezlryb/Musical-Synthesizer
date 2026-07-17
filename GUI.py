@@ -121,7 +121,7 @@ class Note:
         self.location = location
         self.rect.topleft = location
         self.state = 'normal'
-        self.currect_img = normal_img
+        self.current_img = normal_img
         self.volume = volume
         self.index = 0
         self.form = 'saw'
@@ -136,7 +136,7 @@ class Note:
         self.wave.update_loop_wave('sustain')
         total_wave += self.wave.play_wave
         self.state = 'pressed'
-        self.currect_img = self.pressed_img
+        self.current_img = self.pressed_img
         print('pressed')
 
     def release_note(self, mouse_over):
@@ -144,12 +144,13 @@ class Note:
         if self.state == 'pressed':
             self.state = 'releasing'
         if mouse_over:
-            self.currect_img = self.hovered_img
+            self.current_img = self.hovered_img
         else:
-            self.currect_img = self.normal_img
+            self.current_img = self.normal_img
  
     def draw(self):
-        self.screen.blit(self.currect_img, self.location)
+        if self.current_img != self.normal_img:
+            self.screen.blit(self.current_img, self.location)
         
     def loop_note(self):
         global total_wave
@@ -388,6 +389,8 @@ if __name__ == "__main__":
             b_notes.append(note)
     notes = b_notes + w_notes
     notes_wb = w_notes + b_notes
+    for note in notes_wb:
+        bases.blit(note.current_img, note.location)
     x_note_id = {}
     for note in notes_wb:
         x_note_id[note] = note.location[0]
@@ -397,7 +400,7 @@ if __name__ == "__main__":
     clock = py.time.Clock()
 
     while running:
-        clock.tick(30)
+        clock.tick(20)
         count = 0
         for event in py.event.get():
             if event.type == py.QUIT:
@@ -510,6 +513,7 @@ if __name__ == "__main__":
                 for slider in osccilator_one_asdr_sliders:
                     slider.draw()
                 for note in notes_wb:
+
                     note.draw()
                 view.blit(screen, (0, 0))
                 py.display.update()

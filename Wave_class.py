@@ -146,7 +146,7 @@ class Wave2:
     
 
 class Wave3:
-    def __init__(self, frequency = 440, wave_form = 0, amplitude = 1, attack = 0.5, decay = 3, sustain = 0.5, release = 1.0, width = 0, drift = 0, loop_duration = 0.1, sample_rate = 44100):
+    def __init__(self, frequency = 440, wave_form = 0, amplitude = 1, attack = 0.5, decay = 3, sustain = 0.5, release = 1.0, width = 0, drift = 0, loop_duration = 0.15, sample_rate = 44100):
         self.frequency = frequency
         self.wave_form = wave_form
         self.amplitude = amplitude
@@ -166,21 +166,12 @@ class Wave3:
     def update_total_wave(self):
         self.loop = 0
         self.time_when_released = 0
-        if self.wave_form == 0:
-            self.wave = lambda x: self.amplitude * np.sin(2 * np.pi * self.frequency * x)
-        elif self.wave_form == 1:
-            self.wave = lambda x: self.amplitude * signal.sawtooth(2 * np.pi * self.frequency * x, width=0.5)
-        elif self.wave_form == 2:
-            self.wave = lambda x: self.amplitude * signal.square(2 * np.pi * self.frequency * x)
-        elif self.wave_form == 3:
-            self.wave = lambda x: self.amplitude * signal.sawtooth(2 * np.pi * self.frequency * x)
         x1 = np.linspace(0, self.attack, int(self.attack * self.sample_rate), False)
         x2 = np.linspace(self.attack, self.attack + self.decay, int(self.decay * self.sample_rate), False)
         self.x = np.concatenate([x1,x2])
         attack_form = lambda x: ((0-1) / (0 - self.attack)) * x
         decay_form = lambda x: (((self.sustain - 1) / self.decay) * (x - self.attack - self.decay) + self.sustain)
         self.form = np.concatenate([attack_form(x1), decay_form(x2)])
-        
 
     def update_loop_wave(self, mode):
         start = int(self.loop * self.sample_rate)
@@ -196,15 +187,20 @@ class Wave3:
                 self.play_form = self.sustain
             self.time_when_released = end / self.sample_rate
         elif mode == 'release':
-            self.release_form = lambda x, release_time, y_of_x = self.x: - y_of_x / self.release * (x - self.release - release_time)
             if end > np.shape(self.x)[0]:
-                self.play_form = self.release_form(self.loop, self.time_when_released + self.loop_duration, self.sustain)
+                self.play_form = - self.sustain / self.release * (self.loop - self.release - self.time_when_released - self.loop_duration)
             else:
-                self.play_form = self.release_form(self.loop, self.time_when_released, self.x[int(self.time_when_released * self.sample_rate)])
-                
-        x = np.linspace(self.loop, self.loop + self.loop_duration, end - start)    
-        self.play_wave = self.play_form * self.wave(x)
-        self.loop += self.loop_duration
-        self.loop = round(self.loop, 8)
+                self.play_form = - self.x[int(self.time_when_released * self.sample_rate)] / self.release * (self.loop - self.release - self.time_when_released - self.loop_duration)
+
+        if self.wave_form == 0:
+            self.play_wave = self.play_form * self.amplitude * np.sin(2 * np.pi * self.frequency * np.linspace(self.loop, self.loop + self.loop_duration, end - start))
+        elif self.wave_form == 1:
+            self.play_wave = self.play_form * self.amplitude * signal.sawtooth(2 * np.pi * self.frequency * np.linspace(self.loop, self.loop + self.loop_duration, end - start), width=0.5)
+        elif self.wave_form == 2:
+            self.play_wave = self.play_form * self.amplitude * signal.square(2 * np.pi * self.frequency * np.linspace(self.loop, self.loop + self.loop_duration, end - start))
+        elif self.wave_form == 3:
+            self.play_wave = self.play_form * self.amplitude * signal.sawtooth(2 * np.pi * self.frequency * np.linspace(self.loop, self.loop + self.loop_duration, end - start))
+
+        self.loop = round(self.loop + self.loop_duration, 8)
         return self.loop >= self.time_when_released + self.release
 
