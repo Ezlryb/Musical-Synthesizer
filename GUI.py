@@ -28,7 +28,6 @@ class ADSR_Slider:
 
 
     def initial_click_check(self):
-        self.slider_grip_rect = self.slider_grip_img.get_rect()
         if self.interactable_area.collidepoint(py.mouse.get_pos()):
             self.is_interacted_with = True
             self.initial_mouse_pos = py.mouse.get_pos()
@@ -49,19 +48,19 @@ class ADSR_Slider:
         if self.is_interacted_with:
             adjusted_mouse_pos_x = py.mouse.get_pos()[0] - self.slider_grip_rect.w/2
             adjusted_mouse_pos_y = py.mouse.get_pos()[1] - self.slider_grip_rect.h/2
-            if adjusted_mouse_pos_x != self.initial_mouse_pos[0] and py.mouse.get_pressed()[0]:
-                if self.x1 <= adjusted_mouse_pos_x and adjusted_mouse_pos_x <= self.x2:
+            if py.mouse.get_pressed()[0]:
+                if self.x1 <= adjusted_mouse_pos_x <= self.x2:
                     new_x = adjusted_mouse_pos_x
-                elif self.x1 >= py.mouse.get_pos()[0]:
+                elif self.x1 > adjusted_mouse_pos_x:
                     new_x = self.x1
                 else:
                     new_x = self.x2
             else:
                 new_x = self.currect_x
-            if adjusted_mouse_pos_y != self.initial_mouse_pos[1] and py.mouse.get_pressed()[0]:
-                if self.y1 <= adjusted_mouse_pos_y and adjusted_mouse_pos_y <= self.y2:
+            if py.mouse.get_pressed()[0]:
+                if self.y1 <= adjusted_mouse_pos_y <= self.y2:
                     new_y = adjusted_mouse_pos_y
-                elif self.y1 >= py.mouse.get_pos()[1]:
+                elif self.y1 > adjusted_mouse_pos_y:
                     new_y = self.y1
                 else:
                     new_y = self.currect_y
@@ -69,8 +68,8 @@ class ADSR_Slider:
                 new_y = self.currect_y
             self.currect_x = new_x
             self.currect_y = new_y
-        screen.blit(self.slider_grip_img, (self.currect_x, self.currect_y))
-        return (self.x2 - self.currect_x, self.y2 - self.currect_y)
+        self.track_check()
+        return ((self.x1 - self.currect_x + 0.0001) / (self.x1 - self.x2 + 0.0001), (self.y2 - self.currect_y + 0.0001) / (self.y2 - self.y1 + 0.0001))
             
     def move2(self):
         if self.is_interacted_with:
@@ -99,12 +98,13 @@ class ADSR_Slider:
             self.currect_x = new_x
             self.currect_y = new_y
             self.track_check()
-        return (self.x1 - self.currect_x, self.y2 - self.currect_y)
+        return ((self.x1 - self.currect_x + 0.0001) / (self.x1 - self.x2 + 0.0001), (self.y2 - self.currect_y + 0.0001) / (self.y2 - self.y1 + 0.0001))
         
     def draw(self):
         global screen
         screen.blit(self.currect_track_img, (self.x1, self.y1))
-        screen.blit(self.slider_grip_img, (self.currect_x, self.currect_y))
+        if self.slider_grip_img != None:
+            screen.blit(self.slider_grip_img, (self.currect_x, self.currect_y))
 
 
 
@@ -235,11 +235,18 @@ def mouse_note_check(w_notes, b_notes, last_notes_over):
         
 
 def update_notes():
-    for i, note in enumerate(x_note_id.keys()):
+    print(knob_values)
+    for i, note in enumerate(x_note_id.keys()): 
+        note.wave.attack = (slider_values[0] * 2) ** 2
+        note.wave.decay = (slider_values[1] * 2) ** 2
+        note.wave.sustain = slider_values[2] ** 2
+        note.wave.release = (slider_values[3] * 2) ** 2
+        note.wave.lushness = 1 + int(round(10*knob_values[4]))
+        note.wave.spread = (knob_values[2] * 0.5) ** 3
         note.wave.frequency = frequencies[i+lowest_frequency]
         note.index = i+1
         note.wave.wave_form = form
-        note.wave.amplitude = volume
+        note.wave.amplitude = volume * knob_values[0]
         note.wave.update_total_wave()
 
 
@@ -257,7 +264,7 @@ if __name__ == "__main__":
     KEYBOARD_Y = 303
     WHITE_NOTE_SPACING = 24
     BLACK_NOTE_SPACING = 26
-    volume = 0.5
+    volume = 0.125
     form = 0
     lowest_frequency = 48
     last_note_mouse_was_over = []
@@ -315,6 +322,18 @@ if __name__ == "__main__":
     [set_up_img('Resources/wave_form_buttons/saw1.png'),
     set_up_img('Resources/wave_form_buttons/saw2.png'),
     set_up_img('Resources/wave_form_buttons/saw3.png')]]
+    adjustment_knob_imgs = []
+    for i in range(1, 14):
+        adjustment_knob_imgs.append(set_up_img(f'Resources/adjustment_knobs/adjustment_knob{i}.png'))
+    
+    adjustment_knobs = []
+    count = 0
+    for i in range(3):
+        for j in range(2):
+            adjustment_knobs.append(ADSR_Slider(py.Rect((121+i*24)*SCREEN_SCALE, (204+j*25)*SCREEN_SCALE, 18*SCREEN_SCALE, 18*SCREEN_SCALE), (123+i*24)*SCREEN_SCALE, (123+i*24)*SCREEN_SCALE, (206+j*25)*SCREEN_SCALE, (232+j*25)*SCREEN_SCALE, None, [], range(int((232+j*25)*SCREEN_SCALE), int((206+j*25)*SCREEN_SCALE), int(-2*SCREEN_SCALE)), adjustment_knob_imgs))
+            count += 1
+
+    
     osccilator_one_radio_buttons = []
     count = 0
     for i in range(2):
@@ -326,7 +345,7 @@ if __name__ == "__main__":
     volume_slider_paths = []
     for i in range(1,9):
         volume_slider_paths.append(set_up_img(f'Resources/volume_slider_track{i}.png'))
-    volume_slider = ADSR_Slider(py.Rect(500*SCREEN_SCALE, 10*SCREEN_SCALE, 94*SCREEN_SCALE, 15*SCREEN_SCALE), 528*SCREEN_SCALE, 584*SCREEN_SCALE, 14*SCREEN_SCALE, 14*SCREEN_SCALE, volume_slider_interactable, range(525*SCREEN_SCALE, 590*SCREEN_SCALE, 8*SCREEN_SCALE), [], volume_slider_paths)
+    volume_slider = ADSR_Slider(py.Rect(500*SCREEN_SCALE, 10*SCREEN_SCALE, 94*SCREEN_SCALE, 15*SCREEN_SCALE), 528*SCREEN_SCALE, 584*SCREEN_SCALE, 14*SCREEN_SCALE, 14*SCREEN_SCALE, volume_slider_interactable, range(int(525*SCREEN_SCALE), int(590*SCREEN_SCALE), int(8*SCREEN_SCALE)), [], volume_slider_paths)
     asdr_slider_interactable = set_up_img('Resources/ADSR_slider_interactable.png')
     asdr_track1 = set_up_img('Resources/asdr_track1.png')
     asdr_track2 = set_up_img('Resources/asdr_track2.png')
@@ -341,6 +360,7 @@ if __name__ == "__main__":
     bases.blit(keyboard_base, (9*SCREEN_SCALE, 288*SCREEN_SCALE))
     bases.blit(osccilator_base, (47*SCREEN_SCALE, 188*SCREEN_SCALE))
     screen.blit(bases, (0,0))
+
     n = 0
     for i in range(21):
         if n > len(w_key_hovered_imgs) - 1:
@@ -363,6 +383,8 @@ if __name__ == "__main__":
     for note in notes_wb:
         x_note_id[note] = note.location[0]
     x_note_id = dict(sorted(x_note_id.items(), key=lambda x: x[1]))
+    slider_values = [0.01, 0.01, 0.01, 0.01]
+    knob_values = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
     update_notes()
     profiler = cProfile.Profile()
     clock = py.time.Clock()
@@ -380,15 +402,6 @@ if __name__ == "__main__":
                 elif event.key == py.K_p:
                     profiler.clear()
                     profiler.enable()
-                elif event.key == py.K_1:
-                    form = 0
-                    should_update_notes = True
-                elif event.key == py.K_2:
-                    form = 1
-                    should_update_notes = True
-                elif event.key == py.K_3:
-                    form = 2
-                    should_update_notes = True
                 elif event.key == py.K_z:
                     w_notes[0].play_note()
                 elif event.key == py.K_x:
@@ -454,10 +467,8 @@ if __name__ == "__main__":
                 last_note_mouse_was_over.append(mouse_note_check(w_notes, b_notes, last_note_mouse_was_over))
                 while None in last_note_mouse_was_over:
                     last_note_mouse_was_over.pop(last_note_mouse_was_over.index(None))
-
-                if up_octave_btn.check(event) or down_octave_btn.check(event):
-                    should_update_notes = True
-
+                up_octave_btn.check(event) 
+                down_octave_btn.check(event)
                 for button in osccilator_one_radio_buttons:
                     if event.type == py.MOUSEBUTTONDOWN:
                         if button.check():
@@ -465,27 +476,34 @@ if __name__ == "__main__":
                                 other.state = 'normal'
                             button.state = 'pressed'
                             form = button.value
-                            should_update_notes = True
-                volume = volume_slider.move2()
-                if volume != None:
-                    volume = volume[0] / (volume_slider.x2 - volume_slider.x1)
+                volume = volume_slider.move1()
+                volume = volume[0] / ((volume_slider.x2 - volume_slider.x1))
+                knob_values = []
+                for knob in adjustment_knobs:
+                    knob_values.append(knob.move2()[1])
+                slider_values = []
                 for slider in osccilator_one_asdr_sliders:
-                    coords = slider.move2()
+                    slider_values.append(slider.move2()[1])
             if event.type == py.MOUSEBUTTONDOWN:
                 volume_slider.initial_click_check()
+                for knob in adjustment_knobs:
+                    knob.initial_click_check()
                 for item in osccilator_one_asdr_sliders:
                     item.initial_click_check()
             if event.type == py.MOUSEBUTTONUP:
                 volume_slider.is_interacted_with = False
+                for knob in adjustment_knobs:
+                    knob.is_interacted_with = False
                 for item in osccilator_one_asdr_sliders:
                     item.is_interacted_with = False
-                if volume != None:
-                    should_update_notes = True
+                should_update_notes = True
             if count == 0:
                 screen.blit(bases, (0,0))
                 up_octave_btn.draw()
                 down_octave_btn.draw()
                 volume_slider.draw()
+                for knob in adjustment_knobs:
+                    knob.draw()
                 for button in osccilator_one_radio_buttons:
                     button.draw()
                 for slider in osccilator_one_asdr_sliders:
@@ -501,8 +519,8 @@ if __name__ == "__main__":
             total_wave[:] = 0
             for note in notes:
                 note.loop_note()
-            mixed_wave = (total_wave * 0.25)
-            if round(np.max(total_wave), 5) > 1.0:
+            mixed_wave = (total_wave)
+            if round(np.max(mixed_wave), 5) > 1.0:
                 mixed_wave /= np.max(total_wave)
             mixed_wave = np.asarray([32767*mixed_wave, 32767*mixed_wave]).T.astype(np.int16)
             total_note = py.sndarray.make_sound(mixed_wave.copy())
@@ -511,8 +529,8 @@ if __name__ == "__main__":
             total_wave[:] = 0
             for note in notes:
                 note.loop_note()
-            mixed_wave = (total_wave * 0.25)
-            if round(np.max(total_wave), 5) > 1.0:
+            mixed_wave = (total_wave)
+            if round(np.max(mixed_wave), 5) > 1.0:
                 mixed_wave /= np.max(total_wave)
             mixed_wave = np.asarray([32767*mixed_wave, 32767*mixed_wave]).T.astype(np.int16)
             total_note = py.sndarray.make_sound(mixed_wave.copy())
