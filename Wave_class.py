@@ -146,7 +146,7 @@ class Wave2:
     
 
 class Wave3:
-    def __init__(self, frequency = 440, wave_form = 0, amplitude = 1, attack = 0.5, decay = 3, sustain = 0.5, release = 1.0, spread = 0.0002, lushness = 1, loop_duration = 0.15, sample_rate = 44100):
+    def __init__(self, frequency = [440, 440, 440], wave_form = [0,0,0], amplitude = [1,1,1], attack = [0.5,0.5,0.5], decay = [3,3,3], sustain = [0.5,0.5,0.5], release = [1, 1, 1], spread = [0.0002, 0.0002, 0.0002], lushness = [1,1,1], loop_duration = 0.05, sample_rate = 44100):
         self.frequency = frequency
         self.wave_form = wave_form
         self.amplitude = amplitude
@@ -162,46 +162,56 @@ class Wave3:
         profile.disable()
         profile.enable()
         
-        
     def update_total_wave(self):
+        x1 = []
+        x2 = []
+        self.x = []
+        attack_form = []
+        decay_form = []
+        self.form = []
         self.loop = 0
         self.time_when_released = 0
-        x1 = np.linspace(0, self.attack, int(round(self.attack * self.sample_rate)), False)
-        x2 = np.linspace(self.attack, self.attack + self.decay, int(round(self.decay * self.sample_rate)), False)
-        self.x = np.concatenate([x1,x2])
-        attack_form = lambda x: ((0-1) / (0 - self.attack)) * x
-        decay_form = lambda x: (((self.sustain - 1) / self.decay) * (x - self.attack - self.decay) + self.sustain)
-        self.form = np.concatenate([attack_form(x1), decay_form(x2)])
+        for i in range(3):
+            x1.append(np.linspace(0, self.attack[i], int(round(self.attack[i] * self.sample_rate)), False))
+            x2.append(np.linspace(self.attack[i], self.attack[i] + self.decay[i], int(round(self.decay[i] * self.sample_rate)), False))
+            self.x.append(np.concatenate([x1[i],x2[i]]))
+            attack_form.append(lambda x: ((0-1) / (0 - self.attack[i])) * x)
+            decay_form.append(lambda x: (((self.sustain[i] - 1) / self.decay[i]) * (x - self.attack[i] - self.decay[i]) + self.sustain[i]))
+            self.form.append(np.concatenate([attack_form[i](x1[i]), decay_form[i](x2[i])]))
 
     def update_loop_wave(self, mode):
+        self.play_form = []
+        self.play_wave = []
         start = int(self.loop * self.sample_rate)
         end = int((self.loop + self.loop_duration) * self.sample_rate)
         if end - start < self.sample_rate * self.loop_duration:
             end += 1
         elif end - start > self.sample_rate * self.loop_duration:
             end -= 1
-        if mode == 'sustain':
-            if end <= np.shape(self.x)[0]:
-                self.play_form = self.form[start:end]
-            else:
-                self.play_form = self.sustain
-            self.time_when_released = self.loop
-        elif mode == 'release':
-            if end > np.shape(self.x)[0]:
-                self.play_form = - self.sustain / self.release * (self.loop - self.release - self.time_when_released - self.loop_duration)
-            else:
-                self.play_form = - self.form[int(round(self.time_when_released * self.sample_rate))] / self.release * (self.loop - self.release - self.time_when_released - self.loop_duration)
-        self.play_wave = np.zeros(int(round(self.loop_duration*self.sample_rate)))
-        for i in range(0, self.lushness, 1):
-            if self.wave_form == 0:
-                self.play_wave += (1 / (i + 1)) * self.play_form * self.amplitude * np.sin(2 * np.pi * (self.frequency * (1 + self.spread * i / (self.lushness))) * np.linspace(self.loop, self.loop + self.loop_duration, end - start))
-            elif self.wave_form == 1:
-                self.play_wave += (1 / (i + 1)) * self.play_form * self.amplitude * signal.sawtooth(2 * np.pi * (self.frequency * (1 + self.spread * i / (self.lushness))) * np.linspace(self.loop, self.loop + self.loop_duration, end - start), width=0.5)
-            elif self.wave_form == 2:
-                self.play_wave += (1 / (i + 1)) * self.play_form * self.amplitude * signal.square(2 * np.pi * (self.frequency * (1 + self.spread * i / (self.lushness))) * np.linspace(self.loop, self.loop + self.loop_duration, end - start))
-            elif self.wave_form == 3:
-                self.play_wave += (1 / (i + 1)) * self.play_form * self.amplitude * signal.sawtooth(2 * np.pi * (self.frequency * (1 + self.spread * i / (self.lushness))) * np.linspace(self.loop, self.loop + self.loop_duration, end - start))
+        for n in range(3):
+            if mode == 'sustain':
+                if end <= np.shape(self.x[n])[0]:
+                    self.play_form.append(self.form[n][start:end])
+                else:
+                    self.play_form.append(self.sustain[n])
+                self.time_when_released = self.loop
+            elif mode == 'release':
+                if end > np.shape(self.x[n])[0]:
+                    self.play_form.append(- self.sustain[n] / self.release[n] * (self.loop - self.release[n] - self.time_when_released - self.loop_duration))
+                else:
+                    self.play_form.append(- self.form[n][int(round(self.time_when_released * self.sample_rate))] / self.release[n] * (self.loop - self.release[n] - self.time_when_released - self.loop_duration))
+            self.play_wave.append(np.zeros(int(round(self.loop_duration*self.sample_rate))))
+            for i in range(0, self.lushness[n], 1):
+                if self.wave_form[n] == 0:
+                    self.play_wave[n] += (1 / (i + 1)) * self.play_form[n] * self.amplitude[n] * np.sin(2 * np.pi * (self.frequency[n] * (1 + self.spread[n] * i / (self.lushness[n]))) * np.linspace(self.loop, self.loop + self.loop_duration, end - start))
+                elif self.wave_form[n] == 1:
+                    self.play_wave[n] += (1 / (i + 1)) * self.play_form[n] * self.amplitude[n] * signal.sawtooth(2 * np.pi * (self.frequency[n] * (1 + self.spread[n] * i / (self.lushness[n]))) * np.linspace(self.loop, self.loop + self.loop_duration, end - start), width=0.5)
+                elif self.wave_form[n] == 2:
+                    self.play_wave[n] += (1 / (i + 1)) * self.play_form[n] * self.amplitude[n] * signal.square(2 * np.pi * (self.frequency[n] * (1 + self.spread[n] * i / (self.lushness[n]))) * np.linspace(self.loop, self.loop + self.loop_duration, end - start))
+                elif self.wave_form[n] == 3:
+                    self.play_wave[n] += (1 / (i + 1)) * self.play_form[n] * self.amplitude[n] * signal.sawtooth(2 * np.pi * (self.frequency[n] * (1 + self.spread[n] * i / (self.lushness[n]))) * np.linspace(self.loop, self.loop + self.loop_duration, end - start))
 
         self.loop = round(self.loop + self.loop_duration, 8)
-        return self.loop >= self.time_when_released + self.release
+        print(self.frequency)
+        return [self.loop >= self.time_when_released + self.release[0], self.loop >= self.time_when_released + self.release[1], self.loop >= self.time_when_released + self.release[2]]
 
