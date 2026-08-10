@@ -6,9 +6,19 @@ from matplotlib import pyplot as plt
 import cProfile
 import pstats
 
+class Tooltip:
+    def __init__(self, img, x, y):
+        self.x = x
+        self.y = y
+        self.img = img
+
+    def show(self):
+        screen.blit(self.img, (self.x, self.y))
+
+
 
 class ADSR_Slider:
-    def __init__(self, interactable_area, x1, x2, y1, y2, slider_grip_img, x_track_boundaries, y_track_boundaries, track_imgs):
+    def __init__(self, interactable_area, x1, x2, y1, y2, slider_grip_img, x_track_boundaries, y_track_boundaries, track_imgs, mouse_over_state):
         self.interactable_area = interactable_area
         self.x1 = x1
         self.x2 = x2
@@ -22,6 +32,8 @@ class ADSR_Slider:
         self.x_track_boundaries = x_track_boundaries
         self.y_track_boundaries = y_track_boundaries
         self.currect_track_img = track_imgs[0]
+        self.mosue_over_state = mouse_over_state
+        self.tooltip = 0
         self.is_interacted_with = False
         self.initial_mouse_pos = (0,0)
         self.track_check()
@@ -46,8 +58,8 @@ class ADSR_Slider:
 
     def move1(self):
         if self.is_interacted_with:
-            adjusted_mouse_pos_x = py.mouse.get_pos()[0]
-            adjusted_mouse_pos_y = py.mouse.get_pos()[1]
+            adjusted_mouse_pos_x = py.mouse.get_pos()[0] - self.slider_grip_img.get_width()/2
+            adjusted_mouse_pos_y = py.mouse.get_pos()[1] - self.slider_grip_img.get_height()/2
             if py.mouse.get_pressed()[0]:
                 if self.x1 <= adjusted_mouse_pos_x <= self.x2:
                     new_x = adjusted_mouse_pos_x
@@ -103,9 +115,12 @@ class ADSR_Slider:
     def draw(self):
         global screen
         screen.blit(self.currect_track_img, (self.x1, self.y1))
+        if self.interactable_area.collidepoint(py.mouse.get_pos()):
+            global is_mouse_over_interactable
+            is_mouse_over_interactable = True
+            py.mouse.set_cursor(self.mosue_over_state)
         if self.slider_grip_img != None:
             screen.blit(self.slider_grip_img, (self.currect_x, self.currect_y))
-
 
 
 class Note:
@@ -128,7 +143,7 @@ class Note:
         self.wave.update_total_wave()
         screen.blit(normal_img, location)
 
-    def play_note(self, pressed_by = 'keyboard'):
+    def play_note(self, pressed_by):
         global total_wave
         self.pressed_by.append(pressed_by)
         if self.state != 'pressed':
@@ -144,21 +159,27 @@ class Note:
             self.pressed_by.remove(released_by)
             
     def draw(self):
+        global is_mouse_over_interactable
         if self.current_img != self.normal_img:
-            self.screen.blit(self.current_img, self.location)
+            self.screen.blit(self.current_img, self.location)         
+            is_mouse_over_interactable = True
+            py.mouse.set_cursor(py.SYSTEM_CURSOR_HAND)
         
-    def loop_note(self):
+    def loop_note(self, is_under_black_note):
         global total_wave
         if self.pressed_by == [] and self.state == 'pressed':
             self.state = 'releasing'
-            if self.rect.collidepoint(py.mouse.get_pos()):
+            if self.rect.collidepoint(py.mouse.get_pos()) and not is_under_black_note:
                 self.current_img = self.hovered_img
+                return True
             else:
                 self.current_img = self.normal_img
+                return False
         if self.state == 'pressed':
             self.wave.update_loop_wave('sustain')
             total_wave += self.wave.play_wave[0] + self.wave.play_wave[1] + self.wave.play_wave[2]
-        if self.state == 'releasing':
+            return True
+        elif self.state == 'releasing':
             bool_list = self.wave.update_loop_wave('release')
             if False not in bool_list:
                 self.state = 'normal'
@@ -166,10 +187,18 @@ class Note:
                 for i, is_released in enumerate(bool_list):
                     if not is_released: 
                         total_wave += self.wave.play_wave[i]
+        if self.state == 'normal':
+            if self.rect.collidepoint(py.mouse.get_pos()) and not is_under_black_note:
+                self.current_img = self.hovered_img
+                return True
+            else:
+                self.current_img = self.normal_img
+                return False
+
 
 
 class Button:
-    def __init__(self, interactable_area, normal_img, hovered_img, pressed_img, x, y, button_type, initial_state, initial_value = 0, step = 0, max_value = 0, min_value = 0):
+    def __init__(self, interactable_area, normal_img, hovered_img, pressed_img, x, y, button_type, initial_state, tooltip, initial_value = 0, step = 0, max_value = 0, min_value = 0):
         self.interactable_area = interactable_area
         self.normal_img = normal_img
         self.hovered_img = hovered_img
@@ -183,6 +212,7 @@ class Button:
         self.step = step
         self.max_value = max_value
         self.min_value = min_value
+        self.tooltip = tooltip
     
     def check(self, event = None):
         if self.button_type == 'scale':
@@ -202,7 +232,7 @@ class Button:
                         return True
                 elif self.button_type == 'radio':
                         return True
-        if self.button_type == 'scale' and not py.mouse.get_pressed()[0]:
+        if self.button_type == 'scale' and (not py.mouse.get_pressed()[0] or event == py.MOUSEBUTTONUP):
             if lowest_frequency + self.step <= self.max_value and lowest_frequency + self.step >= self.min_value:
                 self.state = 'normal'
             else:
@@ -218,6 +248,12 @@ class Button:
         elif self.state == 'pressed' or self.state == 'disabled':
             self.current_img = self.pressed_img
         screen.blit(self.current_img, (self.x, self.y))
+        if self.interactable_area.collidepoint(py.mouse.get_pos()):
+            global is_mouse_over_interactable 
+            is_mouse_over_interactable = True
+            py.mouse.set_cursor(py.SYSTEM_CURSOR_HAND)
+            if TOOLTIPS_SHOWING and self.state not in ['pressed', 'disabled']:
+                self.tooltip.show()
 
 
 def mouse_note_check(w_notes, b_notes, last_notes_over):
@@ -258,7 +294,6 @@ def update_notes():
             note.wave.update_total_wave()
 
 
-
 def set_up_img(path, x=0, y=0):
     global SCREEN_SCALE
     img = py.image.load(path)
@@ -267,6 +302,7 @@ def set_up_img(path, x=0, y=0):
 
 
 if __name__ == "__main__":
+    TOOLTIPS_SHOWING = True
     SCREEN_SCALE = 2
     KEYBOARD_X = 96
     KEYBOARD_Y = 303
@@ -281,6 +317,7 @@ if __name__ == "__main__":
     py.mixer.init()
     py.mixer.set_num_channels(1)
     py.init()
+    py.mouse.set_cursor(py.cursors.Cursor(py.SYSTEM_CURSOR_ARROW))
     view = py.display.set_mode((640*SCREEN_SCALE,416*SCREEN_SCALE))
     screen = py.Surface((640*SCREEN_SCALE,416*SCREEN_SCALE))
     screen.fill('#02002c')
@@ -315,21 +352,26 @@ if __name__ == "__main__":
     down_octave_key_normal = set_up_img('Resources/down_octave_key_normal.png')
     down_octave_key_pressed = set_up_img('Resources/down_octave_key_pressed.png')
     down_octave_key_hovered = set_up_img('Resources/down_octave_key_hovered.png')
-    up_octave_btn = Button(py.Rect(35*SCREEN_SCALE, 297*SCREEN_SCALE, 33*SCREEN_SCALE, 21*SCREEN_SCALE), up_octave_key_normal, up_octave_key_hovered, up_octave_key_pressed, 35*SCREEN_SCALE, 297*SCREEN_SCALE, 'scale', 'normal', 48, 12, len(frequencies) - 21 - 15, 0)
-    down_octave_btn = Button(py.Rect(35*SCREEN_SCALE, 321*SCREEN_SCALE, 33*SCREEN_SCALE, 21*SCREEN_SCALE), down_octave_key_normal, down_octave_key_hovered, down_octave_key_pressed, 35*SCREEN_SCALE, 321*SCREEN_SCALE, 'scale', 'normal', 48, -12, len(frequencies) - 21 -15, 0)
+    up_octave_btn = Button(py.Rect(35*SCREEN_SCALE, 297*SCREEN_SCALE, 33*SCREEN_SCALE, 21*SCREEN_SCALE), up_octave_key_normal, up_octave_key_hovered, up_octave_key_pressed, 35*SCREEN_SCALE, 297*SCREEN_SCALE, 'scale', 'normal', Tooltip(set_up_img('Resources/tool_tips/up_octave_button_tool_tip.png'), 17*SCREEN_SCALE, 262*SCREEN_SCALE), 48, 12, len(frequencies) - 21 - 15, 0)
+    down_octave_btn = Button(py.Rect(35*SCREEN_SCALE, 321*SCREEN_SCALE, 33*SCREEN_SCALE, 21*SCREEN_SCALE), down_octave_key_normal, down_octave_key_hovered, down_octave_key_pressed, 35*SCREEN_SCALE, 321*SCREEN_SCALE, 'scale', 'normal', Tooltip(set_up_img('Resources/tool_tips/down_octave_button_tool_tip.png'), 17*SCREEN_SCALE, 346*SCREEN_SCALE), 48, -12, len(frequencies) - 21 -15, 0)
     wave_form_button_imgs = [
-    [set_up_img('Resources/wave_form_buttons/sin1.png'),
-    set_up_img('Resources/wave_form_buttons/sin2.png'),
-    set_up_img('Resources/wave_form_buttons/sin3.png')],
-    [set_up_img('Resources/wave_form_buttons/tri1.png'),
-    set_up_img('Resources/wave_form_buttons/tri2.png'),
-    set_up_img('Resources/wave_form_buttons/tri3.png')],
-    [set_up_img('Resources/wave_form_buttons/squ1.png'),
-    set_up_img('Resources/wave_form_buttons/squ2.png'),
-    set_up_img('Resources/wave_form_buttons/squ3.png')],
-    [set_up_img('Resources/wave_form_buttons/saw1.png'),
-    set_up_img('Resources/wave_form_buttons/saw2.png'),
-    set_up_img('Resources/wave_form_buttons/saw3.png')]]
+        [set_up_img('Resources/wave_form_buttons/sin1.png'),
+            set_up_img('Resources/wave_form_buttons/sin2.png'),
+            set_up_img('Resources/wave_form_buttons/sin3.png')],
+        [set_up_img('Resources/wave_form_buttons/tri1.png'),
+            set_up_img('Resources/wave_form_buttons/tri2.png'),
+            set_up_img('Resources/wave_form_buttons/tri3.png')],
+        [set_up_img('Resources/wave_form_buttons/squ1.png'),
+            set_up_img('Resources/wave_form_buttons/squ2.png'),
+            set_up_img('Resources/wave_form_buttons/squ3.png')],
+        [set_up_img('Resources/wave_form_buttons/saw1.png'),
+            set_up_img('Resources/wave_form_buttons/saw2.png'),
+            set_up_img('Resources/wave_form_buttons/saw3.png')]]
+    wave_form_tool_tip_imgs = [
+        set_up_img('Resources/tool_tips/sin_tool_tip.png'),
+        set_up_img('Resources/tool_tips/triangle_tool_tip.png'),
+        set_up_img('Resources/tool_tips/square_tool_tip.png'),
+        set_up_img('Resources/tool_tips/saw_tool_tip.png'),]
     adjustment_knob_imgs = []
     for i in range(1, 14):
         adjustment_knob_imgs.append(set_up_img(f'Resources/adjustment_knobs/adjustment_knob{i}.png'))
@@ -339,7 +381,7 @@ if __name__ == "__main__":
         count = 0
         for i in range(3):
             for j in range(2):
-                adjustment_knobs.append(ADSR_Slider(py.Rect((121+i*24)*SCREEN_SCALE, (204+j*25-n*OSCCILATOR_SPACING)*SCREEN_SCALE, 18*SCREEN_SCALE, 18*SCREEN_SCALE), (123+i*24)*SCREEN_SCALE, (123+i*24)*SCREEN_SCALE, (206+j*25-n*OSCCILATOR_SPACING)*SCREEN_SCALE, (232+j*25-n*OSCCILATOR_SPACING)*SCREEN_SCALE, None, [], range(int((232+j*25-n*OSCCILATOR_SPACING)*SCREEN_SCALE), int((206+j*25-n*OSCCILATOR_SPACING)*SCREEN_SCALE), int(-2*SCREEN_SCALE)), adjustment_knob_imgs))
+                adjustment_knobs.append(ADSR_Slider(py.Rect((121+i*24)*SCREEN_SCALE, (204+j*25-n*OSCCILATOR_SPACING)*SCREEN_SCALE, 18*SCREEN_SCALE, 18*SCREEN_SCALE), (123+i*24)*SCREEN_SCALE, (123+i*24)*SCREEN_SCALE, (206+j*25-n*OSCCILATOR_SPACING)*SCREEN_SCALE, (232+j*25-n*OSCCILATOR_SPACING)*SCREEN_SCALE, None, [], range(int((232+j*25-n*OSCCILATOR_SPACING)*SCREEN_SCALE), int((206+j*25-n*OSCCILATOR_SPACING)*SCREEN_SCALE), int(-2*SCREEN_SCALE)), adjustment_knob_imgs, py.SYSTEM_CURSOR_SIZENS))
                 count += 1
         adjustment_knobs_lists.append(adjustment_knobs)
     osccilator_radio_buttons_lists = []
@@ -348,7 +390,7 @@ if __name__ == "__main__":
         count = 0
         for i in range(2):
             for j in range(2):
-                osccilator_radio_buttons.append(Button(py.Rect((56+i*33)*SCREEN_SCALE, (208+21*j-n*OSCCILATOR_SPACING)*SCREEN_SCALE, 28*SCREEN_SCALE, 18*SCREEN_SCALE), wave_form_button_imgs[count][0], wave_form_button_imgs[count][1], wave_form_button_imgs[count][2], (57+i*32)*SCREEN_SCALE, (209+20*j-n*OSCCILATOR_SPACING)*SCREEN_SCALE, 'radio', 'normal', count, count))
+                osccilator_radio_buttons.append(Button(py.Rect((56+i*33)*SCREEN_SCALE, (208+21*j-n*OSCCILATOR_SPACING)*SCREEN_SCALE, 28*SCREEN_SCALE, 18*SCREEN_SCALE), wave_form_button_imgs[count][0], wave_form_button_imgs[count][1], wave_form_button_imgs[count][2], (57+i*32)*SCREEN_SCALE, (209+20*j-n*OSCCILATOR_SPACING)*SCREEN_SCALE, 'radio', 'normal', Tooltip(wave_form_tool_tip_imgs[count], 100*SCREEN_SCALE, 100*SCREEN_SCALE), count, count))
                 count += 1
         osccilator_radio_buttons[0].state = 'pressed'
         osccilator_radio_buttons_lists.append(osccilator_radio_buttons)
@@ -356,7 +398,7 @@ if __name__ == "__main__":
     volume_slider_paths = []
     for i in range(1,9):
         volume_slider_paths.append(set_up_img(f'Resources/volume_slider_track{i}.png'))
-    volume_slider = ADSR_Slider(py.Rect(500*SCREEN_SCALE, 10*SCREEN_SCALE, 94*SCREEN_SCALE, 15*SCREEN_SCALE), 528*SCREEN_SCALE, 584*SCREEN_SCALE, 14*SCREEN_SCALE, 14*SCREEN_SCALE, volume_slider_interactable, range(int(525*SCREEN_SCALE), int(590*SCREEN_SCALE), int(8*SCREEN_SCALE)), [], volume_slider_paths)
+    volume_slider = ADSR_Slider(py.Rect(500*SCREEN_SCALE, 10*SCREEN_SCALE, 94*SCREEN_SCALE, 15*SCREEN_SCALE), 528*SCREEN_SCALE, 584*SCREEN_SCALE, 14*SCREEN_SCALE, 14*SCREEN_SCALE, volume_slider_interactable, range(int(525*SCREEN_SCALE), int(590*SCREEN_SCALE), int(8*SCREEN_SCALE)), [], volume_slider_paths, py.SYSTEM_CURSOR_HAND)
     asdr_slider_interactable = set_up_img('Resources/ADSR_slider_interactable.png')
     asdr_track1 = set_up_img('Resources/asdr_track1.png')
     asdr_track2 = set_up_img('Resources/asdr_track2.png')
@@ -367,7 +409,7 @@ if __name__ == "__main__":
     for n in range(3):
         osccilator_asdr_sliders = []
         for i in range(4):
-            osccilator_asdr_sliders.append(ADSR_Slider(py.Rect((215+SPACING*i)*SCREEN_SCALE, (205-n*OSCCILATOR_SPACING)*SCREEN_SCALE, 16*SCREEN_SCALE, 50*SCREEN_SCALE), (218+SPACING*i)*SCREEN_SCALE, (218+SPACING*i)*SCREEN_SCALE, (207-n*OSCCILATOR_SPACING)*SCREEN_SCALE, (232-n*OSCCILATOR_SPACING)*SCREEN_SCALE, asdr_slider_interactable, [], [(232-n*OSCCILATOR_SPACING)*SCREEN_SCALE, (222-n*OSCCILATOR_SPACING)*SCREEN_SCALE, (212-n*OSCCILATOR_SPACING)*SCREEN_SCALE], [asdr_track1, asdr_track2, asdr_track3]))
+            osccilator_asdr_sliders.append(ADSR_Slider(py.Rect((215+SPACING*i)*SCREEN_SCALE, (205-n*OSCCILATOR_SPACING)*SCREEN_SCALE, 16*SCREEN_SCALE, 50*SCREEN_SCALE), (218+SPACING*i)*SCREEN_SCALE, (218+SPACING*i)*SCREEN_SCALE, (207-n*OSCCILATOR_SPACING)*SCREEN_SCALE, (232-n*OSCCILATOR_SPACING)*SCREEN_SCALE, asdr_slider_interactable, [], [(232-n*OSCCILATOR_SPACING)*SCREEN_SCALE, (222-n*OSCCILATOR_SPACING)*SCREEN_SCALE, (212-n*OSCCILATOR_SPACING)*SCREEN_SCALE], [asdr_track1, asdr_track2, asdr_track3], py.SYSTEM_CURSOR_HAND))
         osccilator_asdr_sliders_lists.append(osccilator_asdr_sliders)
     bases = py.Surface((640*SCREEN_SCALE,416*SCREEN_SCALE))
     bases.blit(controls_base, (9*SCREEN_SCALE, 6*SCREEN_SCALE))
@@ -407,10 +449,12 @@ if __name__ == "__main__":
     profiler = cProfile.Profile()
     clock = py.time.Clock()
     while running:
+        is_mouse_over_interactable = False
         should_update_notes = False
         clock.tick(60)
-        count = 0
-        for event in py.event.get():
+        events = py.event.get()
+        for event in events:
+            update_becasue_no_events = 0
             if event.type == py.QUIT:
                 running = False
             elif event.type == py.KEYDOWN:
@@ -446,11 +490,7 @@ if __name__ == "__main__":
                 elif event.key == py.K_j:
                     b_notes[4].play_note('j')
             elif event.type == py.KEYUP:
-                if event.key == py.K_q:
-                    pass
-                    '''plt.plot(total_wave)
-                    plt.show()'''
-                elif event.key == py.K_p:
+                if event.key == py.K_p:
                     profiler.disable()
                     stats = pstats.Stats(profiler)
                     stats.sort_stats('cumtime')
@@ -481,20 +521,28 @@ if __name__ == "__main__":
                     b_notes[3].release_note('h')
                 elif event.key == py.K_j:
                     b_notes[4].release_note('j')
-            elif event.type == py.MOUSEBUTTONDOWN or event.type == py.MOUSEBUTTONUP or event.type == py.MOUSEMOTION:
+            if event.type == py.MOUSEBUTTONDOWN:
+                initial_mouse_pos = py.mouse.get_pos()
+                volume_slider.initial_click_check()
+                for adjustment_knobs_sublist in adjustment_knobs_lists:
+                    for knob in adjustment_knobs_sublist:
+                        knob.initial_click_check()
+                for osccilator_asdr_sliders_sublist in osccilator_asdr_sliders_lists:
+                    for slider in osccilator_asdr_sliders_sublist:
+                        slider.initial_click_check()
+                for i, osccilator_radio_buttons_sublist in enumerate(osccilator_radio_buttons_lists):
+                    for button in osccilator_radio_buttons_sublist:
+                        if button.check():
+                            for other in osccilator_radio_buttons_sublist:
+                                other.state = 'normal'
+                            button.state = 'pressed'
+                            form[i] = button.value
+            if event.type == py.MOUSEBUTTONDOWN or event.type == py.MOUSEBUTTONUP or event.type == py.MOUSEMOTION:
                 last_note_mouse_was_over.append(mouse_note_check(w_notes, b_notes, last_note_mouse_was_over))
                 while None in last_note_mouse_was_over:
                     last_note_mouse_was_over.pop(last_note_mouse_was_over.index(None))
                 up_octave_btn.check(event) 
                 down_octave_btn.check(event)
-                for i, osccilator_radio_buttons_sublist in enumerate(osccilator_radio_buttons_lists):
-                    for button in osccilator_radio_buttons_sublist:
-                        if event.type == py.MOUSEBUTTONDOWN:
-                            if button.check():
-                                for other in osccilator_radio_buttons_sublist:
-                                    other.state = 'normal'
-                                button.state = 'pressed'
-                                form[i] = button.value
                 volume = volume_slider.move1()
                 volume = volume[0] / ((volume_slider.x2 - volume_slider.x1))
                 knob_values_lists = []
@@ -509,15 +557,6 @@ if __name__ == "__main__":
                     for slider in osccilator_asdr_sliders_sublist:
                         slider_values.append(slider.move2()[1])
                     slider_values_lists.append(slider_values)
-            if event.type == py.MOUSEBUTTONDOWN:
-                initial_mouse_pos = py.mouse.get_pos()
-                volume_slider.initial_click_check()
-                for adjustment_knobs_sublist in adjustment_knobs_lists:
-                    for knob in adjustment_knobs_sublist:
-                        knob.initial_click_check()
-                for osccilator_asdr_sliders_sublist in osccilator_asdr_sliders_lists:
-                    for slider in osccilator_asdr_sliders_sublist:
-                        slider.initial_click_check()
             if event.type == py.MOUSEBUTTONUP:
                 volume_slider.is_interacted_with = False
                 for adjustment_knobs_sublist in adjustment_knobs_lists:
@@ -527,32 +566,37 @@ if __name__ == "__main__":
                     for slider in osccilator_asdr_sliders_sublist:
                         slider.is_interacted_with = False
                 should_update_notes = True
-            if count == 0:
-                if should_update_notes:
-                    update_notes()
-                screen.blit(bases, (0,0))
-                up_octave_btn.draw()
-                down_octave_btn.draw()
-                volume_slider.draw()
-                for adjustment_knobs_sublist in adjustment_knobs_lists:
-                    for knob in adjustment_knobs_sublist:
-                        knob.draw()
-                for osccilator_radio_buttons_sublist in osccilator_radio_buttons_lists:
-                    for button in osccilator_radio_buttons_sublist:
-                        button.draw()
-                for osccilator_asdr_sliders_sublist in osccilator_asdr_sliders_lists:
-                    for slider in osccilator_asdr_sliders_sublist:
-                        slider.draw()
-                for note in notes_wb:
-                    note.draw()
-                view.blit(screen, (0, 0))
-                py.display.update()
-                count += 1
-        
+        if update_becasue_no_events in range(4):
+            screen.blit(bases, (0,0))
+            if should_update_notes:
+                update_notes()
+            for note in notes_wb:
+                note.draw()
+            up_octave_btn.draw()
+            down_octave_btn.draw()
+            volume_slider.draw()
+            for adjustment_knobs_sublist in adjustment_knobs_lists:
+                for knob in adjustment_knobs_sublist:
+                    knob.draw()
+            for osccilator_radio_buttons_sublist in osccilator_radio_buttons_lists:
+                for button in osccilator_radio_buttons_sublist:
+                    button.draw()
+            for osccilator_asdr_sliders_sublist in osccilator_asdr_sliders_lists:
+                for slider in osccilator_asdr_sliders_sublist:
+                    slider.draw()
+            if not is_mouse_over_interactable:
+                py.mouse.set_cursor(py.SYSTEM_CURSOR_ARROW)
+            view.blit(screen, (0, 0))
+            py.display.update()
+            update_becasue_no_events += 1
         if not py.mixer.Channel(0).get_busy():
             total_wave[:] = 0
-            for note in notes:
-                note.loop_note()
+            is_mouse_over_black_key = False
+            for note in b_notes: 
+                if note.loop_note(is_mouse_over_black_key):
+                    is_mouse_over_black_key = True
+            for note in w_notes: 
+                note.loop_note(is_mouse_over_black_key)
             mixed_wave = total_wave
             if round(np.max(mixed_wave), 5) > 1.0:
                 mixed_wave /= np.max(mixed_wave)
@@ -561,8 +605,12 @@ if __name__ == "__main__":
             py.mixer.Channel(0).play(total_note)
         if py.mixer.Channel(0).get_queue() == None:
             total_wave[:] = 0
-            for note in notes:
-                note.loop_note()
+            is_mouse_over_black_key = False
+            for note in b_notes: 
+                if note.loop_note(is_mouse_over_black_key):
+                    is_mouse_over_black_key = True
+            for note in w_notes: 
+                note.loop_note(is_mouse_over_black_key)
             mixed_wave = total_wave
             if round(np.max(mixed_wave), 5) > 1.0:
                 mixed_wave /= np.max(mixed_wave)
