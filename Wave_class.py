@@ -161,6 +161,8 @@ class Wave3:
         global profile 
         profile.disable()
         profile.enable()
+        self.loop = 0
+        self.time_when_released = 0
         
     def update_total_wave(self):
         x1 = []
@@ -169,8 +171,6 @@ class Wave3:
         attack_form = []
         decay_form = []
         self.form = []
-        self.loop = 0
-        self.time_when_released = 0
         for i in range(3):
             x1.append(np.linspace(0, self.attack[i], int(round(self.attack[i] * self.sample_rate)), False))
             x2.append(np.linspace(self.attack[i], self.attack[i] + self.decay[i], int(round(self.decay[i] * self.sample_rate)), False))
@@ -212,6 +212,5 @@ class Wave3:
                     self.play_wave[n] += (1 / (i + 1)) * self.play_form[n] * self.amplitude[n] * signal.sawtooth(2 * np.pi * (self.frequency[n] * (1 + self.spread[n] * i / (self.lushness[n]))) * np.linspace(self.loop, self.loop + self.loop_duration, end - start))
 
         self.loop = round(self.loop + self.loop_duration, 8)
-        print(self.frequency)
         return [self.loop >= self.time_when_released + self.release[0], self.loop >= self.time_when_released + self.release[1], self.loop >= self.time_when_released + self.release[2]]
 
