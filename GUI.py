@@ -401,11 +401,11 @@ if __name__ == "__main__":
     down_octave_key_hovered = set_up_img('Resources/down_octave_key_hovered.png')
     up_octave_btn = Button(py.Rect(35*SCREEN_SCALE, 297*SCREEN_SCALE, 33*SCREEN_SCALE, 21*SCREEN_SCALE), up_octave_key_normal, up_octave_key_hovered, up_octave_key_pressed, 35*SCREEN_SCALE, 297*SCREEN_SCALE, 'scale', 'normal', Tooltip(set_up_img('Resources/tool_tips/up_octave_button_tool_tip.png'), 17*SCREEN_SCALE, 262*SCREEN_SCALE), 48, 12, len(frequencies) - 21 - 15, 0)
     down_octave_btn = Button(py.Rect(35*SCREEN_SCALE, 321*SCREEN_SCALE, 33*SCREEN_SCALE, 21*SCREEN_SCALE), down_octave_key_normal, down_octave_key_hovered, down_octave_key_pressed, 35*SCREEN_SCALE, 321*SCREEN_SCALE, 'scale', 'normal', Tooltip(set_up_img('Resources/tool_tips/down_octave_button_tool_tip.png'), 17*SCREEN_SCALE, 346*SCREEN_SCALE), 48, -12, len(frequencies) - 21 -15, 0)
-    tool_tip_toggle_button_imgs = [set_up_img(f'Resources/tool_tip_toggle_buttons/tool_tip_toggle_button_on.png'),
-                                       set_up_img(f'Resources/tool_tip_toggle_buttons/tool_tip_toggle_button_off.png')]
+    tool_tip_toggle_button_imgs = [set_up_img(f'Resources/tool_tip_toggle_buttons/tool_tip_toggle_button_off.png'),
+                                       set_up_img(f'Resources/tool_tip_toggle_buttons/tool_tip_toggle_button_on.png')]
     tooltip_button = Toggle_Slider(py.Rect(54*SCREEN_SCALE , 13*SCREEN_SCALE, 64*SCREEN_SCALE, 13*SCREEN_SCALE), tool_tip_toggle_button_imgs, 35*SCREEN_SCALE, 5*SCREEN_SCALE, True)
-    keybinds_toggle_button_imgs = [set_up_img(f'Resources/tool_tip_toggle_buttons/keybinds_toggle_button_on.png'),
-                                       set_up_img(f'Resources/tool_tip_toggle_buttons/keybinds_toggle_button_off.png')]
+    keybinds_toggle_button_imgs = [set_up_img(f'Resources/tool_tip_toggle_buttons/keybinds_toggle_button_off.png'),
+                                       set_up_img(f'Resources/tool_tip_toggle_buttons/keybinds_toggle_button_on.png')]
     keybinds_button = Toggle_Slider(py.Rect((54+93)*SCREEN_SCALE , 13*SCREEN_SCALE, 64*SCREEN_SCALE, 13*SCREEN_SCALE), keybinds_toggle_button_imgs, 128*SCREEN_SCALE, 5*SCREEN_SCALE, True)
     keybinds_img = set_up_img('Resources/Key_binds.png')
     wave_form_button_imgs = [
@@ -679,7 +679,7 @@ if __name__ == "__main__":
             if not is_mouse_over_interactable:
                 py.mouse.set_cursor(py.SYSTEM_CURSOR_ARROW)
             if KEYBINDS_SHOWING:
-                screen.blit(keybinds_img, (96, 308))
+                screen.blit(keybinds_img, (0, 0))
             for i, osccilator_toggle_button in enumerate(osccilator_toggle_buttons):
                 if not osccilator_toggle_button.state:
                     screen.blit(shadow, (52*SCREEN_SCALE, (205-i*75)*SCREEN_SCALE))
