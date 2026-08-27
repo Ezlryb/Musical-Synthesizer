@@ -674,15 +674,15 @@ if __name__ == "__main__":
             for osccilator_asdr_sliders_sublist in osccilator_asdr_sliders_lists:
                 for slider in osccilator_asdr_sliders_sublist:
                     slider.draw()
+            for i, osccilator_toggle_button in enumerate(osccilator_toggle_buttons):
+                if not osccilator_toggle_button.state:
+                    screen.blit(shadow, (52*SCREEN_SCALE, (193-i*75)*SCREEN_SCALE))
             if TOOLTIPS_SHOWING and TOOLTIP != None:
                 TOOLTIP.draw()
             if not is_mouse_over_interactable:
                 py.mouse.set_cursor(py.SYSTEM_CURSOR_ARROW)
             if KEYBINDS_SHOWING:
                 screen.blit(keybinds_img, (0, 0))
-            for i, osccilator_toggle_button in enumerate(osccilator_toggle_buttons):
-                if not osccilator_toggle_button.state:
-                    screen.blit(shadow, (52*SCREEN_SCALE, (205-i*75)*SCREEN_SCALE))
             view.blit(screen, (0, 0))
             py.display.update()
             update_becasue_no_events += 1
