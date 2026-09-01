@@ -31,7 +31,7 @@ class ADSR_Slider:
         self.x_track_boundaries = x_track_boundaries
         self.y_track_boundaries = y_track_boundaries
         self.currect_track_img = track_imgs[0]
-        self.mosue_over_state = mouse_over_state
+        self.mouse_over_state = mouse_over_state
         self.tooltip = tooltip
         self.activated = True
         self.is_interacted_with = False
@@ -124,7 +124,7 @@ class ADSR_Slider:
             TOOLTIP = self.tooltip
             global is_mouse_over_interactable
             is_mouse_over_interactable = True
-            py.mouse.set_cursor(self.mosue_over_state)
+            py.mouse.set_cursor(self.mouse_over_state)
         if self.slider_grip_img != None:
             screen.blit(self.slider_grip_img, (self.currect_x, self.currect_y))
 
@@ -169,7 +169,8 @@ class Note:
         if self.current_img != self.normal_img:
             self.screen.blit(self.current_img, self.location)         
             is_mouse_over_interactable = True
-            py.mouse.set_cursor(py.SYSTEM_CURSOR_HAND)
+            if 'mouse' in self.pressed_by:
+                py.mouse.set_cursor(py.SYSTEM_CURSOR_HAND)
         
     def loop_note(self, is_under_black_note):
         global total_wave
@@ -360,7 +361,7 @@ if __name__ == "__main__":
     form = [0, 0, 0]
     lowest_frequency = 48
     last_note_mouse_was_over = []
-    py.mixer.pre_init(44100, -16, 2, 2)
+    py.mixer.pre_init(44100, -16, 2, 512)
     py.mixer.init()
     py.mixer.set_num_channels(1)
     py.init()
@@ -532,7 +533,7 @@ if __name__ == "__main__":
         TOOLTIP = None
         is_mouse_over_interactable = False
         should_update_notes = False
-        clock.tick(200)
+        clock.tick(100)
         events = py.event.get()
         for event in events:
             update_becasue_no_events = 0
@@ -693,12 +694,12 @@ if __name__ == "__main__":
             for note in b_notes: 
                 if note.loop_note(is_mouse_over_black_key):
                     is_mouse_over_black_key = True
+                    py.mouse.set_cursor(py.SYSTEM_CURSOR_HAND)
+
             for note in w_notes: 
-                note.loop_note(is_mouse_over_black_key)
-            mixed_wave = total_wave
-            peak = np.max(np.abs(mixed_wave))
-            #if peak > 1.0:
-               # mixed_wave /= peak
+                if note.loop_note(is_mouse_over_black_key):
+                    py.mouse.set_cursor(py.SYSTEM_CURSOR_HAND)
+            mixed_wave = total_wave/4
             mixed_wave = np.asarray([32767*mixed_wave, 32767*mixed_wave]).T.astype(np.int16)
             total_note = py.sndarray.make_sound(mixed_wave.copy())
             py.mixer.Channel(0).play(total_note)
@@ -708,12 +709,11 @@ if __name__ == "__main__":
             for note in b_notes: 
                 if note.loop_note(is_mouse_over_black_key):
                     is_mouse_over_black_key = True
+                    py.mouse.set_cursor(py.SYSTEM_CURSOR_HAND)
             for note in w_notes: 
-                note.loop_note(is_mouse_over_black_key)
-            mixed_wave = total_wave
-            peak = np.max(np.abs(mixed_wave))
-            #if peak > 1.0:
-                #mixed_wave /= peak
+                if note.loop_note(is_mouse_over_black_key):
+                    py.mouse.set_cursor(py.SYSTEM_CURSOR_HAND)
+            mixed_wave = total_wave/4
             mixed_wave = np.asarray([32767*mixed_wave, 32767*mixed_wave]).T.astype(np.int16)
             total_note = py.sndarray.make_sound(mixed_wave.copy())
             py.mixer.Channel(0).queue(total_note)
