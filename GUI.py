@@ -360,7 +360,7 @@ if __name__ == "__main__":
     form = [0, 0, 0]
     lowest_frequency = 48
     last_note_mouse_was_over = []
-    py.mixer.pre_init(44100, -16, 2, 2048)
+    py.mixer.pre_init(44100, -16, 2, 2)
     py.mixer.init()
     py.mixer.set_num_channels(1)
     py.init()
@@ -526,12 +526,13 @@ if __name__ == "__main__":
     profiler = cProfile.Profile()
     clock = py.time.Clock()
     frame = 0
+    buffer_value = 0
     while running:
         frame += 1
         TOOLTIP = None
         is_mouse_over_interactable = False
         should_update_notes = False
-        clock.tick(60)
+        clock.tick(200)
         events = py.event.get()
         for event in events:
             update_becasue_no_events = 0
@@ -695,8 +696,9 @@ if __name__ == "__main__":
             for note in w_notes: 
                 note.loop_note(is_mouse_over_black_key)
             mixed_wave = total_wave
-            if round(np.max(mixed_wave), 5) > 1.0:
-                mixed_wave /= np.max(mixed_wave)
+            peak = np.max(np.abs(mixed_wave))
+            #if peak > 1.0:
+               # mixed_wave /= peak
             mixed_wave = np.asarray([32767*mixed_wave, 32767*mixed_wave]).T.astype(np.int16)
             total_note = py.sndarray.make_sound(mixed_wave.copy())
             py.mixer.Channel(0).play(total_note)
@@ -709,8 +711,9 @@ if __name__ == "__main__":
             for note in w_notes: 
                 note.loop_note(is_mouse_over_black_key)
             mixed_wave = total_wave
-            if round(np.max(mixed_wave), 5) > 1.0:
-                mixed_wave /= np.max(mixed_wave)
+            peak = np.max(np.abs(mixed_wave))
+            #if peak > 1.0:
+                #mixed_wave /= peak
             mixed_wave = np.asarray([32767*mixed_wave, 32767*mixed_wave]).T.astype(np.int16)
             total_note = py.sndarray.make_sound(mixed_wave.copy())
             py.mixer.Channel(0).queue(total_note)

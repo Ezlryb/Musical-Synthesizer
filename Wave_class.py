@@ -8,7 +8,7 @@ import sys
 profile = cProfile.Profile()   
 
 class Wave3:
-    def __init__(self, frequency = [440, 440, 440], wave_form = [0,0,0], amplitude = [1,1,1], attack = [0.5,0.5,0.5], decay = [3,3,3], sustain = [0.5,0.5,0.5], release = [1, 1, 1], spread = [0.0002, 0.0002, 0.0002], lushness = [1,1,1], loop_duration = 0.05, sample_rate = 44100):
+    def __init__(self, frequency = [440, 440, 440], wave_form = [0,0,0], amplitude = [1,1,1], attack = [0.5,0.5,0.5], decay = [3,3,3], sustain = [0.5,0.5,0.5], release = [1, 1, 1], spread = [0.0002, 0.0002, 0.0002], lushness = [1,1,1], loop_duration = 0.03, sample_rate = 44100):
         self.frequency = frequency
         self.wave_form = wave_form
         self.amplitude = amplitude
@@ -25,6 +25,7 @@ class Wave3:
         profile.enable()
         self.loop = 0
         self.time_when_released = 0
+        self.value_when_released = [0,0,0]
         
     def update_total_wave(self):
         x1 = []
@@ -44,23 +45,21 @@ class Wave3:
     def update_loop_wave(self, mode):
         self.play_wave = []
         self.play_form = []
-        start = round(self.loop * self.sample_rate)
-        end = start + round(self.loop_duration * self.sample_rate)
-        time = self.loop + np.arange(self.loop_duration * self.sample_rate) / self.sample_rate
-        if end - start < self.sample_rate * self.loop_duration:
-            end += 1
-        elif end - start > self.sample_rate * self.loop_duration:
-            end -= 1
+        samples = round(self.loop_duration*self.sample_rate)
+        start = self.loop
+        end = start + samples
+        time = np.arange(start, end) / self.sample_rate
         for n in range(3):
             if mode == 'sustain':
-                if end <= np.shape(self.x[n])[0]:
+                if end <= len(self.x[n]):
                     self.play_form.append(self.form[n][start:end])
                 else:
-                    self.play_form.append(self.sustain[n])
+                    self.play_form.append(np.full(samples, self.sustain[n]))
                 self.time_when_released = self.loop
+                self.value_when_released[n] = self.play_form[-1][-1]
             elif mode == 'release':
-                self.play_form.append(self.sustain[n] * (1 - np.clip((self.loop-self.time_when_released)/self.release[n], 0, 1)))
-            self.play_wave.append(np.zeros(int(round(self.loop_duration*self.sample_rate))))
+                self.play_form.append(self.value_when_released[n] * (1 - np.clip((np.arange(start, end) - self.time_when_released) / (self.release[n] * self.sample_rate), 0, 1)))
+            self.play_wave.append(np.zeros(samples))
 
             
             for i in range(0, self.lushness[n], 1):
@@ -74,6 +73,5 @@ class Wave3:
                     self.play_wave[n] += (1 / (i + 1)) * self.play_form[n] * self.amplitude[n] * signal.sawtooth(2 * np.pi * (self.frequency[n] * (1 + self.spread[n] * i / (self.lushness[n]))) * time)
             
 
-        self.loop = round(self.loop + self.loop_duration, 8)
-        return [self.loop >= self.time_when_released + self.release[0], self.loop >= self.time_when_released + self.release[1], self.loop >= self.time_when_released + self.release[2]]
-
+        self.loop = end
+        return [self.loop >= self.time_when_released + self.release[0]*self.sample_rate, self.loop >= self.time_when_released + self.release[1]*self.sample_rate, self.loop >= self.time_when_released + self.release[2]*self.sample_rate]
